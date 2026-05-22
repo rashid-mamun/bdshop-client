@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -64,10 +62,11 @@
     @apply bg-[#f8f9fa] text-[#1a1a1a];
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    color: #1a1a1a;
+    color: inherit;
     font-weight: 700;
     line-height: 1.2;
   }
@@ -86,6 +85,41 @@
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #adb5bd;
+  }
+}
+
+@layer components {
+  .bd-container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  @media (min-width: 768px) {
+    .bd-container {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .bd-container {
+      max-width: 1220px;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .bd-container {
+      max-width: 1480px;
+    }
+  }
+
+  @media (min-width: 1800px) {
+    .bd-container {
+      max-width: 1640px;
+    }
   }
 }
 
