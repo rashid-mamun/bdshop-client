@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CheckCircle, Package, Truck, ArrowRight, Home, Clock } from 'lucide-react';
+import { CheckCircle, Package, Truck, ArrowRight, Home, Clock, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function ThankYouPage() {
@@ -23,9 +23,9 @@ export default function ThankYouPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.5 }}
-              className="absolute -top-2 -right-2 h-9 w-9 bg-amber-400 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg"
+              className="absolute -top-2 -right-2 h-9 w-9 bg-amber-400 rounded-full flex items-center justify-center text-white shadow-lg"
             >
-              🎉
+              <Sparkles className="h-5 w-5" />
             </motion.div>
           </div>
         </motion.div>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Home, Search } from 'lucide-react';
+import { Home, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function NotFoundPage() {
@@ -15,7 +15,9 @@ export default function NotFoundPage() {
           <div className="relative inline-block mb-8">
             <p className="text-[140px] font-black text-gray-100 leading-none select-none">404</p>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-6xl">🔍</div>
+              <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white text-[#1a8a4a] shadow-sm ring-1 ring-gray-100">
+                <Search className="h-10 w-10" />
+              </div>
             </div>
           </div>
 
