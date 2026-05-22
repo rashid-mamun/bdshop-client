@@ -4,9 +4,11 @@ import { Link } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { ProductCard } from '../components/ProductCard';
 import { CountdownTimer } from '../components/ui/CountdownTimer';
+import { useRecentlyViewedStore } from '../store/useRecentlyViewedStore';
+import type { Product } from '../types/product';
 import {
   Truck, RotateCcw, Headphones, ShieldCheck,
-  ArrowRight, Cpu, Car, Puzzle, Zap, Star, ChevronRight, ChevronLeft
+  ArrowRight, Cpu, Car, Puzzle, Zap, Star, ChevronRight, ChevronLeft, Package, BadgePercent, Store, CreditCard
 } from 'lucide-react';
 
 /* ─── Data constants ─────────────────────────── */
@@ -18,17 +20,171 @@ const TRUST_BADGES = [
 ];
 
 const HERO_CATEGORIES = [
-  { icon: Cpu, label: 'Electronics', to: '/products?category=Electronics', bg: 'bg-blue-600', img: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=200&q=70' },
-  { icon: Car, label: 'Vehicles', to: '/products?category=Vehicles', bg: 'bg-gray-700', img: 'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=200&q=70' },
-  { icon: Puzzle, label: 'Accessories', to: '/products?category=Accessories', bg: 'bg-purple-600', img: 'https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=200&q=70' },
-  { icon: Zap, label: 'New Arrivals', to: '/products?sort=newest', bg: 'bg-amber-500', img: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&q=70' },
+  { icon: Cpu, label: 'Electronics', to: '/products?category=Electronics', bg: 'bg-blue-600', tone: 'from-blue-500 to-cyan-400' },
+  { icon: Car, label: 'Vehicles', to: '/products?category=Vehicles', bg: 'bg-gray-700', tone: 'from-slate-700 to-slate-400' },
+  { icon: Puzzle, label: 'Accessories', to: '/products?category=Accessories', bg: 'bg-purple-600', tone: 'from-violet-500 to-fuchsia-400' },
+  { icon: Zap, label: 'New Arrivals', to: '/products?sort=newest', bg: 'bg-amber-500', tone: 'from-amber-400 to-orange-500' },
+];
+
+const CAMPAIGN_TILES = [
+  {
+    icon: BadgePercent,
+    label: 'Today only',
+    title: 'Mega deals on daily tech',
+    sub: 'Save up to 35% on laptops, audio and smart gadgets.',
+    to: '/products?sort=price_asc',
+    tone: 'from-[#102819] via-[#14532d] to-[#1a8a4a]',
+    accent: 'bg-emerald-300',
+  },
+  {
+    icon: Store,
+    label: 'Verified sellers',
+    title: 'Curated marketplace picks',
+    sub: 'Quality checked products with clear support.',
+    to: '/products?featured=true',
+    tone: 'from-slate-900 via-slate-700 to-slate-500',
+    accent: 'bg-sky-300',
+  },
+  {
+    icon: CreditCard,
+    label: 'Flexible checkout',
+    title: 'Pay your way',
+    sub: 'Cards, COD and mobile wallet-ready flow.',
+    to: '/products',
+    tone: 'from-amber-500 via-orange-500 to-red-500',
+    accent: 'bg-amber-100',
+  },
+];
+
+const BRAND_NAMES = ['NovaTech', 'SoundCore', 'AeroFit', 'PixelMate', 'UrbanRide', 'DrivePro', 'ChargeMax', 'HomeHub'];
+
+const FALLBACK_PRODUCTS: Product[] = [
+  {
+    _id: 'demo-1',
+    name: 'NovaTech',
+    model: 'NovaBook Air 14 Pro',
+    price: 89500,
+    originalPrice: 104000,
+    discountPercent: 14,
+    img: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=640&q=80',
+    description: 'Slim work laptop with vivid display and all-day battery life.',
+    category: 'Electronics',
+    averageRating: 4.8,
+    reviewCount: 128,
+    isFlashDeal: true,
+    stock: 4,
+  },
+  {
+    _id: 'demo-2',
+    name: 'SoundCore',
+    model: 'Pulse ANC Wireless Headphones',
+    price: 12500,
+    originalPrice: 16500,
+    discountPercent: 24,
+    img: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=640&q=80',
+    description: 'Noise-cancelling headphones tuned for travel and focus.',
+    category: 'Accessories',
+    averageRating: 4.7,
+    reviewCount: 89,
+    isNewArrival: true,
+    stock: 9,
+  },
+  {
+    _id: 'demo-3',
+    name: 'UrbanRide',
+    model: 'Volt X Electric Scooter',
+    price: 72500,
+    originalPrice: 79000,
+    discountPercent: 8,
+    img: 'https://images.unsplash.com/photo-1609630875171-b1321377ee65?w=640&q=80',
+    description: 'Daily commute scooter with long range and quick charging.',
+    category: 'Vehicles',
+    averageRating: 4.6,
+    reviewCount: 54,
+    stock: 3,
+  },
+  {
+    _id: 'demo-4',
+    name: 'AeroFit',
+    model: 'AeroFit Smart Watch S2',
+    price: 8900,
+    originalPrice: 12000,
+    discountPercent: 26,
+    img: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=640&q=80',
+    description: 'Health tracking, calls, and a bright AMOLED display.',
+    category: 'Electronics',
+    averageRating: 4.9,
+    reviewCount: 203,
+    isFlashDeal: true,
+    isNewArrival: true,
+    stock: 12,
+  },
+  {
+    _id: 'demo-5',
+    name: 'PixelMate',
+    model: 'PixelMate 4K Action Camera',
+    price: 21900,
+    originalPrice: 26000,
+    discountPercent: 16,
+    img: 'https://images.unsplash.com/photo-1512790182412-b19e6d62bc39?w=640&q=80',
+    description: 'Compact 4K action camera for travel and outdoor content.',
+    category: 'Electronics',
+    averageRating: 4.5,
+    reviewCount: 77,
+    isFlashDeal: true,
+    stock: 6,
+  },
+  {
+    _id: 'demo-6',
+    name: 'HomeHub',
+    model: 'HomeHub Mini Speaker',
+    price: 6400,
+    originalPrice: 8200,
+    discountPercent: 22,
+    img: 'https://images.unsplash.com/photo-1589003077984-894e133dabab?w=640&q=80',
+    description: 'Room-filling smart speaker with deep bass and voice control.',
+    category: 'Accessories',
+    averageRating: 4.6,
+    reviewCount: 64,
+    isNewArrival: true,
+    stock: 15,
+  },
+  {
+    _id: 'demo-7',
+    name: 'DrivePro',
+    model: 'DrivePro Dash Camera',
+    price: 15900,
+    originalPrice: 18900,
+    discountPercent: 16,
+    img: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=640&q=80',
+    description: 'Wide angle recording, night vision, and emergency save.',
+    category: 'Vehicles',
+    averageRating: 4.4,
+    reviewCount: 41,
+    isFlashDeal: true,
+    stock: 8,
+  },
+  {
+    _id: 'demo-8',
+    name: 'ChargeMax',
+    model: 'ChargeMax 65W GaN Charger',
+    price: 3600,
+    originalPrice: 4500,
+    discountPercent: 20,
+    img: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=640&q=80',
+    description: 'Compact fast charger for phone, tablet, and laptop.',
+    category: 'Accessories',
+    averageRating: 4.8,
+    reviewCount: 147,
+    stock: 18,
+  },
 ];
 
 /* ─── Skeleton ───────────────────────────────── */
 function ProductSkeleton() {
   return (
     <div className="bg-white rounded-xl border border-gray-100 overflow-hidden animate-pulse min-w-[240px] md:min-w-0">
-      <div className="aspect-square bg-gray-100" />
+      <div className="aspect-[4/3] bg-gray-100 sm:aspect-square" />
       <div className="p-4 space-y-2">
         <div className="h-3 bg-gray-200 rounded w-1/3" />
         <div className="h-4 bg-gray-200 rounded w-4/5" />
@@ -42,13 +198,13 @@ function ProductSkeleton() {
 /* ─── Section Header ─────────────────────────── */
 function SectionHeader({ title, subtitle, cta, ctaTo }: { title: string; subtitle?: string; cta?: string; ctaTo?: string }) {
   return (
-    <div className="flex items-end justify-between mb-7">
-      <div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-7 min-w-0">
+      <div className="min-w-0">
         <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a1a]">{title}</h2>
         {subtitle && <p className="text-gray-500 text-sm mt-1">{subtitle}</p>}
       </div>
       {cta && ctaTo && (
-        <Link to={ctaTo} className="flex items-center gap-1 text-sm font-semibold text-[#1a8a4a] hover:gap-2 transition-all">
+        <Link to={ctaTo} className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[#1a8a4a] hover:gap-2 transition-all">
           {cta} <ArrowRight className="h-4 w-4" />
         </Link>
       )}
@@ -77,7 +233,7 @@ function HorizontalScroller({ children }: { children: React.ReactNode }) {
         <ChevronLeft className="h-5 w-5" />
       </button>
       
-      <div ref={scrollRef} className="flex gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 -mx-6 px-6 md:mx-0 md:px-0">
+      <div ref={scrollRef} className="flex max-w-full gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4">
         {children}
       </div>
 
@@ -93,6 +249,8 @@ function HorizontalScroller({ children }: { children: React.ReactNode }) {
 
 /* ─── Page ───────────────────────────────────── */
 export default function HomePage() {
+  const { items: recentlyViewed } = useRecentlyViewedStore();
+
   const { data: featuredProducts, isLoading: loadingFeatured } = useQuery({
     queryKey: ['featured-products'],
     queryFn: async () => {
@@ -126,16 +284,20 @@ export default function HomePage() {
   });
 
   const heroProduct = featuredProducts?.[0];
+  const showHeroVisual = true;
+  const flashDisplay = flashProducts?.length ? flashProducts : FALLBACK_PRODUCTS.filter((p) => p.isFlashDeal);
+  const newDisplay = newArrivals?.length ? newArrivals : FALLBACK_PRODUCTS.filter((p) => p.isNewArrival);
+  const featuredDisplay = featuredProducts?.length ? featuredProducts : FALLBACK_PRODUCTS;
 
   return (
-    <div className="flex flex-col min-h-screen pb-16 md:pb-0">
+    <div className="flex flex-col min-h-screen pb-16 md:pb-0 overflow-x-hidden">
 
       {/* ═══ HERO ═══════════════════════════════════ */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#0f2617] via-[#1a3d26] to-[#0d4019]">
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
 
-        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 relative">
+        <div className="bd-container py-16 md:py-24 relative">
           <div className="grid md:grid-cols-2 gap-10 items-center">
             {/* Left — Copy */}
             <div className="text-white space-y-6">
@@ -144,12 +306,12 @@ export default function HomePage() {
                 New arrivals every week
               </div>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-[1.1] tracking-tight">
+              <h1 className="max-w-[18rem] break-words text-4xl font-black leading-[1.1] tracking-tight sm:max-w-none md:text-5xl lg:text-6xl">
                 Premium Shopping
                 <span className="block text-[#4ade80] mt-1">Made Simple</span>
               </h1>
 
-              <p className="text-white/70 text-lg leading-relaxed max-w-md">
+              <p className="max-w-[19rem] break-words text-lg leading-relaxed text-white/70 sm:max-w-md">
                 Discover curated electronics, vehicles & accessories with guaranteed authenticity and fast delivery across Bangladesh.
               </p>
 
@@ -180,24 +342,37 @@ export default function HomePage() {
 
             {/* Right — Visual (Dynamic) */}
             <div className="hidden md:flex justify-center">
-              {heroProduct && (
-                <div className="relative group cursor-pointer" onClick={() => window.location.href = `/products/${heroProduct._id}`}>
+              {showHeroVisual && (
+                <div className="relative group cursor-pointer" onClick={() => window.location.href = heroProduct ? `/products/${heroProduct._id}` : '/products'}>
                   <div className="absolute inset-0 bg-[#1a8a4a] opacity-20 blur-[80px] rounded-full scale-75 group-hover:opacity-30 transition-opacity" />
-                  <div className="relative bg-white/5 backdrop-blur border border-white/10 rounded-3xl p-6 w-80 hover:-translate-y-2 transition-transform duration-300">
-                    <div className="bg-white/10 rounded-2xl aspect-square flex items-center justify-center mb-5 p-4">
-                      <img
-                        src={heroProduct.img}
-                        alt={heroProduct.model}
-                        className="w-full h-full object-contain drop-shadow-2xl mix-blend-screen"
-                      />
+                  <div className="relative w-[380px] rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur transition-transform duration-300 hover:-translate-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      {HERO_CATEGORIES.map((cat) => {
+                        const Icon = cat.icon;
+                        return (
+                          <div
+                            key={cat.label}
+                            className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${cat.tone} p-4 text-white shadow-lg shadow-black/10`}
+                          >
+                            <div className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-white/20" />
+                            <Icon className="relative h-8 w-8" />
+                            <p className="relative mt-6 text-sm font-black">{cat.label}</p>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="text-white space-y-1">
-                      <div className="flex justify-between items-start">
-                        <span className="font-bold line-clamp-2 pr-2">{heroProduct.model}</span>
-                        <span className="text-[#4ade80] font-bold shrink-0">৳{heroProduct.price.toLocaleString()}</span>
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/10 p-4 text-white">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-white/50">Featured drop</p>
+                          <p className="mt-1 line-clamp-1 font-black">{heroProduct?.model || 'Curated deals for every lifestyle'}</p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-[#4ade80]/15 px-3 py-1 text-sm font-black text-[#4ade80]">
+                          {heroProduct ? `৳${heroProduct.price.toLocaleString()}` : 'New'}
+                        </span>
                       </div>
                     </div>
-                    {heroProduct.isNewArrival && (
+                    {(heroProduct?.isNewArrival || !heroProduct) && (
                       <div className="absolute -top-3 -right-3 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-bounce">
                         NEW
                       </div>
@@ -212,8 +387,8 @@ export default function HomePage() {
 
       {/* ═══ TRUST BADGES ═══════════════════════════ */}
       <section className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-5">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bd-container py-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {TRUST_BADGES.map((b) => {
               const Icon = b.icon;
               return (
@@ -232,24 +407,103 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="bg-[#f8f9fa] py-8">
+        <div className="bd-container grid gap-4 lg:grid-cols-[1.35fr_1fr]">
+          <Link
+            to={CAMPAIGN_TILES[0].to}
+            className={`group relative min-h-[260px] overflow-hidden rounded-3xl bg-gradient-to-br ${CAMPAIGN_TILES[0].tone} p-6 text-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl md:p-8`}
+          >
+            <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-white/15 transition-transform duration-500 group-hover:scale-110" />
+            <div className="absolute bottom-0 right-6 hidden h-40 w-40 rounded-[2rem] border border-white/15 bg-white/10 backdrop-blur md:block" />
+            <div className="relative flex h-full max-w-xl flex-col justify-between gap-10">
+              <div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-black uppercase tracking-widest text-emerald-100">
+                  <BadgePercent className="h-4 w-4" />
+                  {CAMPAIGN_TILES[0].label}
+                </span>
+                <h2 className="mt-5 max-w-[15rem] break-words text-2xl font-black leading-tight sm:max-w-lg sm:text-3xl md:text-5xl">
+                  {CAMPAIGN_TILES[0].title}
+                </h2>
+                <p className="mt-3 max-w-md text-sm leading-6 text-white/75 md:text-base">
+                  {CAMPAIGN_TILES[0].sub}
+                </p>
+              </div>
+              <span className="inline-flex w-fit items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-[#14532d] transition-transform group-hover:translate-x-1">
+                Shop campaign <ArrowRight className="h-4 w-4" />
+              </span>
+            </div>
+          </Link>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            {CAMPAIGN_TILES.slice(1).map((tile) => {
+              const Icon = tile.icon;
+              return (
+                <Link
+                  key={tile.title}
+                  to={tile.to}
+                  className={`group relative overflow-hidden rounded-3xl bg-gradient-to-br ${tile.tone} p-6 text-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl`}
+                >
+                  <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/15 transition-transform duration-500 group-hover:scale-125" />
+                  <div className={`relative mb-8 flex h-11 w-11 items-center justify-center rounded-2xl ${tile.accent} text-slate-950`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-black uppercase tracking-widest text-white/55">{tile.label}</p>
+                  <h3 className="mt-2 text-xl font-black">{tile.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-white/75">{tile.sub}</p>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-5 border-y border-gray-100">
+        <div className="bd-container flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm font-black uppercase tracking-widest text-gray-400">Popular brands</p>
+          <div className="flex max-w-full gap-3 overflow-x-auto scrollbar-hide">
+            {BRAND_NAMES.map((brand) => (
+              <Link
+                key={brand}
+                to={`/products?search=${encodeURIComponent(brand)}`}
+                className="shrink-0 rounded-full border border-gray-100 bg-gray-50 px-4 py-2 text-sm font-bold text-gray-700 transition-colors hover:border-[#1a8a4a]/30 hover:bg-[#e8f5ee] hover:text-[#1a8a4a]"
+              >
+                {brand}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══ CATEGORIES ═════════════════════════════ */}
-      <section className="py-12 px-6 max-w-7xl mx-auto w-full">
+      <section className="bg-[#f8f9fa] py-5">
+        <div className="bd-container grid gap-4 md:grid-cols-3">
+          {[
+            { title: 'Pay safely', sub: 'Cards, COD, bKash-ready checkout', tone: 'from-emerald-50 to-white border-emerald-100' },
+            { title: 'Delivery estimate', sub: 'Fast dispatch across Bangladesh', tone: 'from-blue-50 to-white border-blue-100' },
+            { title: 'Verified sellers', sub: 'Curated products with clear support', tone: 'from-amber-50 to-white border-amber-100' },
+          ].map((item) => (
+            <div key={item.title} className={`rounded-2xl border bg-gradient-to-br ${item.tone} p-5`}>
+              <p className="text-sm font-black text-gray-900">{item.title}</p>
+              <p className="mt-1 text-sm text-gray-600">{item.sub}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="bd-container py-12">
         <SectionHeader title="Shop by Category" subtitle="Browse our curated collections" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 min-[460px]:grid-cols-2 sm:grid-cols-4 gap-4">
           {HERO_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             return (
               <Link
                 key={cat.label}
                 to={cat.to}
-                className="group relative rounded-2xl overflow-hidden aspect-[4/3] shadow-sm hover:shadow-xl hover:scale-105 transition-all duration-300"
+                className={`group relative overflow-hidden rounded-2xl bg-gradient-to-br ${cat.tone} aspect-[4/3] shadow-sm transition-all duration-300 hover:scale-[1.02] hover:shadow-xl`}
               >
-                <img
-                  src={cat.img}
-                  alt={cat.label}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/20 transition-transform duration-500 group-hover:scale-125" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                <Icon className="absolute right-5 top-5 h-14 w-14 text-white/30 transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110" />
                 <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
                   <div>
                     <div className={`h-8 w-8 ${cat.bg} rounded-lg flex items-center justify-center mb-2`}>
@@ -266,10 +520,10 @@ export default function HomePage() {
       </section>
 
       {/* ═══ FLASH DEALS (Row) ══════════════════════ */}
-      <section className="py-12 px-6 bg-white border-y border-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-7 flex-wrap gap-4">
-            <div className="flex items-center gap-4">
+      <section className="py-12 bg-white border-y border-gray-100">
+        <div className="bd-container">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-7 min-w-0">
+            <div className="flex min-w-0 items-center gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-2xl">⚡</span>
@@ -282,7 +536,7 @@ export default function HomePage() {
                 <CountdownTimer targetHours={6} />
               </div>
             </div>
-            <Link to="/products?sort=price_asc" className="flex items-center gap-1 text-sm font-semibold text-[#1a8a4a] hover:gap-2 transition-all">
+            <Link to="/products?sort=price_asc" className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-[#1a8a4a] hover:gap-2 transition-all">
               All Deals <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
@@ -290,29 +544,25 @@ export default function HomePage() {
           {loadingFlash ? (
             <HorizontalScroller>
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="min-w-[240px] md:min-w-[280px] snap-start">
+                <div key={i} className="min-w-[220px] sm:min-w-[240px] md:min-w-[280px] snap-start">
                   <ProductSkeleton />
                 </div>
               ))}
             </HorizontalScroller>
-          ) : flashProducts?.length ? (
+          ) : (
             <HorizontalScroller>
-              {flashProducts.map((product: any) => (
-                <div key={product._id} className="min-w-[240px] md:min-w-[280px] snap-start">
+              {flashDisplay.map((product: Product) => (
+                <div key={product._id} className="min-w-[220px] sm:min-w-[240px] md:min-w-[280px] snap-start">
                   <ProductCard product={product} />
                 </div>
               ))}
             </HorizontalScroller>
-          ) : (
-            <div className="py-12 text-center text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-              No flash deals available right now. Check back later!
-            </div>
           )}
         </div>
       </section>
 
       {/* ═══ NEW ARRIVALS (Row) ═════════════════════ */}
-      <section className="py-12 px-6 max-w-7xl mx-auto w-full">
+      <section className="bd-container py-12">
         <SectionHeader
           title="New Arrivals"
           subtitle="The latest and greatest just landed"
@@ -322,29 +572,25 @@ export default function HomePage() {
         {loadingNew ? (
           <HorizontalScroller>
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="min-w-[240px] md:min-w-[280px] snap-start">
+              <div key={i} className="min-w-[220px] sm:min-w-[240px] md:min-w-[280px] snap-start">
                 <ProductSkeleton />
               </div>
             ))}
           </HorizontalScroller>
-        ) : newArrivals?.length ? (
+        ) : (
           <HorizontalScroller>
-            {newArrivals.map((product: any) => (
-              <div key={product._id} className="min-w-[240px] md:min-w-[280px] snap-start">
+            {newDisplay.map((product: Product) => (
+              <div key={product._id} className="min-w-[220px] sm:min-w-[240px] md:min-w-[280px] snap-start">
                 <ProductCard product={product} />
               </div>
             ))}
           </HorizontalScroller>
-        ) : (
-          <div className="py-12 text-center text-gray-500 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-            No new arrivals yet.
-          </div>
         )}
       </section>
 
       {/* ═══ FEATURED PRODUCTS (Grid) ═══════════════ */}
-      <section className="py-12 px-6 bg-gray-50 border-y border-gray-100">
-        <div className="max-w-7xl mx-auto w-full">
+      <section className="py-12 bg-gray-50 border-y border-gray-100">
+        <div className="bd-container">
           <SectionHeader
             title="Featured Products"
             subtitle="Hand-picked for quality and value"
@@ -357,7 +603,7 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {featuredProducts?.map((p: any) => (
+              {featuredDisplay.map((p: Product) => (
                 <ProductCard key={p._id} product={p} />
               ))}
             </div>
@@ -366,11 +612,11 @@ export default function HomePage() {
       </section>
 
       {/* ═══ WHY CHOOSE US ══════════════════════════ */}
-      <section className="py-14 px-6 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto">
+      <section className="py-14 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100">
+        <div className="bd-container">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a1a]">Why Thousands Choose BD Shop</h2>
-            <p className="text-gray-500 mt-2 max-w-xl mx-auto">We don't just sell products — we deliver experiences worth coming back for</p>
+            <h2 className="mx-auto max-w-xs break-words text-2xl md:max-w-full md:text-3xl font-bold text-[#1a1a1a]">Why Thousands Choose BD Shop</h2>
+            <p className="text-gray-500 mt-2 max-w-xs md:max-w-xl mx-auto">We don't just sell products — we deliver experiences worth coming back for</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
@@ -385,7 +631,7 @@ export default function HomePage() {
               >
                 <div className="text-3xl mb-4">{item.icon}</div>
                 <h3 className="font-bold text-[#1a1a1a] text-base mb-2">{item.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
+                <p className="max-w-xs break-words text-gray-600 text-sm leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -394,7 +640,7 @@ export default function HomePage() {
 
       {/* ═══ CUSTOMER REVIEWS ═══════════════════════ */}
       {reviews && reviews.length > 0 && (
-        <section className="py-12 px-6 max-w-7xl mx-auto w-full">
+        <section className="bd-container py-12">
           <SectionHeader title="What Customers Say" subtitle="Verified reviews from real buyers" />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {reviews.slice(0, 6).map((review: any) => (
@@ -433,6 +679,59 @@ export default function HomePage() {
       )}
 
       {/* ═══ CTA BANNER ══════════════════════════════ */}
+      {recentlyViewed.length > 0 && (
+        <section className="py-12 bg-[#f8fbf9] border-y border-gray-100">
+          <div className="bd-container">
+            <SectionHeader
+              title="Recently Viewed"
+              subtitle="Quick jump back to products you opened"
+              cta="Browse all"
+              ctaTo="/products"
+            />
+            <div className="flex max-w-full gap-4 overflow-x-auto rounded-3xl border border-gray-100 bg-white/80 p-4 shadow-sm scrollbar-hide md:p-5">
+              {recentlyViewed.slice(0, 6).map((product) => (
+                <Link
+                  key={product._id}
+                  to={`/products/${product._id}`}
+                  className="group flex min-w-[300px] max-w-[340px] items-center gap-4 rounded-2xl border border-gray-100 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-[#1a8a4a]/30 hover:shadow-md sm:min-w-[360px]"
+                >
+                  <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-50">
+                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#eefaf3] to-white text-[#1a8a4a]">
+                      <Package className="h-8 w-8 opacity-70" />
+                    </div>
+                    <img
+                      src={product.img}
+                      alt={product.model}
+                      className="relative z-10 h-full w-full object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {product.category && (
+                      <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-[#1a8a4a]">
+                        {product.category}
+                      </p>
+                    )}
+                    <p className="line-clamp-2 text-base font-black leading-snug text-gray-950">
+                      {product.model}
+                    </p>
+                    <p className="mt-2 text-lg font-black text-[#1a8a4a]">
+                      ৳{product.price.toLocaleString()}
+                    </p>
+                    <span className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-gray-500 transition-colors group-hover:text-[#1a8a4a]">
+                      View product <ArrowRight className="h-4 w-4" />
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="py-16 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-[#0f2617] to-[#1a4d2a]" />
         <div className="absolute inset-0 opacity-5"
@@ -441,10 +740,10 @@ export default function HomePage() {
           <span className="inline-block bg-[#1a8a4a]/30 border border-[#1a8a4a]/40 text-green-300 text-xs font-semibold uppercase tracking-widest px-4 py-1.5 rounded-full mb-5">
             Limited Time Offer
           </span>
-          <h2 className="text-3xl md:text-4xl font-black text-white mb-4 leading-tight">
+          <h2 className="mx-auto max-w-xs break-words text-3xl md:max-w-full md:text-4xl font-black text-white mb-4 leading-tight">
             Ready to Upgrade Your Life?
           </h2>
-          <p className="text-white/60 text-lg mb-8 max-w-lg mx-auto">
+          <p className="text-white/60 text-lg mb-8 max-w-xs md:max-w-lg mx-auto">
             Join 10,000+ happy customers. New arrivals drop every week — don't miss the next one.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
