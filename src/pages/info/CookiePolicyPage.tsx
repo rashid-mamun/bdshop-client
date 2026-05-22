@@ -1,149 +1,235 @@
 import { useState } from 'react';
+import { BarChart3, Cookie, Mail, Megaphone, Settings2, ShieldCheck } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
+
+const SECTIONS = [
+  { id: 'preferences', title: 'Manage Preferences' },
+  { id: 'what', title: 'What Are Cookies' },
+  { id: 'types', title: 'Types of Cookies We Use' },
+  { id: 'management', title: 'Cookie Management' },
+  { id: 'third', title: 'Third-party Cookies' },
+  { id: 'updates', title: 'Updates to This Policy' },
+];
+
+const scrollTo = (id: string) => {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+const PreferenceToggle = ({
+  enabled,
+  disabled,
+  onClick,
+}: {
+  enabled: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    aria-pressed={enabled}
+    className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition focus:outline-none focus:ring-4 focus:ring-[#1a8a4a]/15 ${
+      enabled ? 'bg-[#1a8a4a]' : 'bg-gray-300'
+    } ${disabled ? 'cursor-not-allowed opacity-70' : 'hover:shadow-md'}`}
+  >
+    <span
+      className={`h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${
+        enabled ? 'translate-x-6' : 'translate-x-0'
+      }`}
+    />
+  </button>
+);
 
 export default function CookiePolicyPage() {
   const { success } = useToast();
   const [preferences, setPreferences] = useState({
-    essential: true, // Always true
+    essential: true,
     analytics: true,
-    marketing: false
+    marketing: false,
   });
-
-  const SECTIONS = [
-    { id: 'what', title: 'What Are Cookies' },
-    { id: 'types', title: 'Types of Cookies We Use' },
-    { id: 'management', title: 'Cookie Management' },
-    { id: 'third', title: 'Third-party Cookies' },
-    { id: 'updates', title: 'Updates to This Policy' },
-  ];
-
-  const scrollTo = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handleSavePreferences = () => {
     success('Cookie preferences saved successfully!');
   };
 
   return (
-    <div className="bg-[#f8f9fa] min-h-screen py-16 px-4">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-10">
-        
-        {/* Sidebar */}
-        <div className="hidden md:block w-72 shrink-0">
-          <div className="sticky top-24 space-y-6">
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-              <h3 className="font-bold text-[#1a1a1a] mb-4 text-lg">Table of Contents</h3>
-              <ul className="space-y-3">
-                {SECTIONS.map(s => (
-                  <li key={s.id}>
-                    <button onClick={() => scrollTo(s.id)} className="text-sm text-gray-500 hover:text-[#1a8a4a] text-left transition-colors font-medium">
-                      {s.title}
+    <div className="min-h-screen bg-[#f8fafc] pb-16">
+      <main className="bd-container py-8 lg:py-10">
+        <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="hidden lg:block">
+            <div className="sticky top-32 space-y-4">
+              <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                <p className="text-xs font-black uppercase tracking-wider text-[#1a8a4a]">On this page</p>
+                <h2 className="mt-2 text-xl font-black text-gray-950">Cookie Policy</h2>
+                <nav className="mt-5 space-y-1">
+                  {SECTIONS.map((section) => (
+                    <button
+                      key={section.id}
+                      onClick={() => scrollTo(section.id)}
+                      className="group flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-bold text-gray-500 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full bg-gray-300 transition group-hover:bg-[#1a8a4a]" />
+                      {section.title}
                     </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 space-y-8">
-          
-          {/* Cookie Preferences Toggle UI */}
-          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-            <h2 className="text-2xl font-bold text-[#1a1a1a] mb-2">Manage Cookie Preferences</h2>
-            <p className="text-gray-500 text-sm mb-6">You can customize your cookie preferences below. Essential cookies cannot be disabled as they are required for the website to function.</p>
-            
-            <div className="space-y-4">
-              {/* Essential */}
-              <div className="flex items-center justify-between p-4 border border-gray-100 rounded-xl bg-gray-50">
-                <div>
-                  <h4 className="font-bold text-[#1a1a1a]">Essential Cookies</h4>
-                  <p className="text-xs text-gray-500 mt-1">Required for core site functionality.</p>
-                </div>
-                <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-[#1a8a4a] opacity-60 cursor-not-allowed">
-                  <span className="inline-block h-4 w-4 transform rounded-full bg-white transition translate-x-6" />
-                </div>
-              </div>
-              
-              {/* Analytics */}
-              <div className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                <div>
-                  <h4 className="font-bold text-[#1a1a1a]">Analytics Cookies</h4>
-                  <p className="text-xs text-gray-500 mt-1">Help us understand how visitors interact with our site.</p>
-                </div>
-                <button 
-                  onClick={() => setPreferences(p => ({ ...p, analytics: !p.analytics }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${preferences.analytics ? 'bg-[#1a8a4a]' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${preferences.analytics ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+                  ))}
+                </nav>
               </div>
 
-              {/* Marketing */}
-              <div className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
-                <div>
-                  <h4 className="font-bold text-[#1a1a1a]">Marketing Cookies</h4>
-                  <p className="text-xs text-gray-500 mt-1">Used to deliver relevant advertisements to you.</p>
-                </div>
-                <button 
-                  onClick={() => setPreferences(p => ({ ...p, marketing: !p.marketing }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${preferences.marketing ? 'bg-[#1a8a4a]' : 'bg-gray-300'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${preferences.marketing ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+              <div className="rounded-3xl border border-[#1a8a4a]/10 bg-[#e8f5ee] p-5">
+                <ShieldCheck className="h-6 w-6 text-[#1a8a4a]" />
+                <h3 className="mt-4 font-black text-gray-950">You control preferences</h3>
+                <p className="mt-2 text-sm font-medium leading-6 text-gray-600">
+                  Essential cookies keep checkout working. Optional cookies can be updated anytime from this page.
+                </p>
               </div>
             </div>
+          </aside>
 
-            <button onClick={handleSavePreferences} className="mt-6 w-full sm:w-auto px-8 py-3 bg-[#1a1a1a] hover:bg-black text-white font-bold rounded-xl transition-all hover:shadow-lg active:scale-95">
-              Save Preferences
-            </button>
-          </div>
+          <article className="overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-sm">
+            <header className="border-b border-gray-100 bg-[linear-gradient(180deg,#f8fbf9_0%,#ffffff_100%)] p-6 lg:p-8">
+              <span className="inline-flex items-center gap-2 rounded-full bg-[#e8f5ee] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#1a8a4a]">
+                <Cookie className="h-4 w-4" />
+                Cookie Controls
+              </span>
+              <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-end">
+                <div>
+                  <p className="text-sm font-black uppercase tracking-wider text-[#1a8a4a]">Last Updated: May 22, 2026</p>
+                  <h1 className="mt-2 text-4xl font-black tracking-tight text-gray-950 sm:text-5xl">
+                    Cookie Policy
+                  </h1>
+                  <p className="mt-4 max-w-3xl text-base font-medium leading-7 text-gray-600">
+                    Learn how BDShop uses cookies to keep shopping fast, secure, personalized, and reliable.
+                  </p>
+                </div>
+                <div className="rounded-3xl border border-[#1a8a4a]/10 bg-[#e8f5ee] p-5">
+                  <p className="text-xs font-black uppercase tracking-wider text-[#1a8a4a]">Preference center</p>
+                  <p className="mt-2 text-2xl font-black text-gray-950">Adjust optional cookies in seconds</p>
+                </div>
+              </div>
+            </header>
 
-          <div className="bg-white rounded-3xl p-8 md:p-12 shadow-sm border border-gray-100">
-            <p className="text-sm font-semibold text-[#1a8a4a] mb-2">Last Updated: October 1, 2026</p>
-            <h1 className="text-4xl font-black text-[#1a1a1a] mb-10">Cookie Policy</h1>
+            <div className="space-y-8 p-6 text-base font-medium leading-8 text-gray-600 lg:p-8">
+              <section id="preferences" className="scroll-mt-32 overflow-hidden rounded-3xl border border-[#1a8a4a]/10 bg-[#fbfcfd]">
+                <div className="border-b border-gray-100 bg-white p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-black text-gray-950">Manage Cookie Preferences</h2>
+                      <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-gray-500">
+                        Essential cookies are required for login, cart, checkout, and security. Optional cookies help us improve and personalize BDShop.
+                      </p>
+                    </div>
+                    <span className="inline-flex w-fit items-center gap-2 rounded-full bg-[#e8f5ee] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#1a8a4a]">
+                      <Settings2 className="h-4 w-4" />
+                      Live controls
+                    </span>
+                  </div>
+                </div>
 
-            <div className="space-y-12 text-gray-600 leading-relaxed">
-              
-              <section id="what">
-                <h2 className="text-2xl font-bold text-[#1a1a1a] mb-4">1. What Are Cookies</h2>
-                <p>Cookies are small text files that are placed on your computer or mobile device when you visit a website. They are widely used to make websites work, or work more efficiently, as well as to provide information to the owners of the site.</p>
+                <div className="grid gap-4 p-6">
+                  <div className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e8f5ee] text-[#1a8a4a]">
+                        <ShieldCheck className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-950">Essential Cookies</h3>
+                        <p className="mt-1 text-sm font-medium leading-6 text-gray-500">Required for cart, checkout, authentication, and account security.</p>
+                      </div>
+                    </div>
+                    <PreferenceToggle enabled={preferences.essential} disabled />
+                  </div>
+
+                  <div className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e8f5ee] text-[#1a8a4a]">
+                        <BarChart3 className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-950">Analytics Cookies</h3>
+                        <p className="mt-1 text-sm font-medium leading-6 text-gray-500">Help us understand browsing behavior and improve product discovery.</p>
+                      </div>
+                    </div>
+                    <PreferenceToggle
+                      enabled={preferences.analytics}
+                      onClick={() => setPreferences((current) => ({ ...current, analytics: !current.analytics }))}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-4 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex gap-4">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e8f5ee] text-[#1a8a4a]">
+                        <Megaphone className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-gray-950">Marketing Cookies</h3>
+                        <p className="mt-1 text-sm font-medium leading-6 text-gray-500">Used to make offers, promotions, and product recommendations more relevant.</p>
+                      </div>
+                    </div>
+                    <PreferenceToggle
+                      enabled={preferences.marketing}
+                      onClick={() => setPreferences((current) => ({ ...current, marketing: !current.marketing }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 bg-white p-6">
+                  <button
+                    type="button"
+                    onClick={handleSavePreferences}
+                    className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-[#1a8a4a] px-6 text-sm font-black text-white shadow-[0_12px_26px_rgba(26,138,74,0.22)] transition hover:-translate-y-0.5 hover:bg-[#157a3f] hover:shadow-[0_16px_32px_rgba(26,138,74,0.28)] active:translate-y-0 sm:w-auto"
+                  >
+                    Save Preferences
+                    <ShieldCheck className="h-5 w-5" />
+                  </button>
+                </div>
               </section>
 
-              <section id="types">
-                <h2 className="text-2xl font-bold text-[#1a1a1a] mb-4">2. Types of Cookies We Use</h2>
-                <ul className="list-disc pl-5 space-y-4">
-                  <li><strong>Essential Cookies:</strong> These cookies are strictly necessary to provide you with services available through our website and to use some of its features, such as access to secure areas.</li>
-                  <li><strong>Analytics Cookies:</strong> These cookies collect information that is used either in aggregate form to help us understand how our website is being used or how effective our marketing campaigns are, or to help us customize our website for you.</li>
-                  <li><strong>Marketing Cookies:</strong> These cookies are used to make advertising messages more relevant to you. They perform functions like preventing the same ad from continuously reappearing, ensuring that ads are properly displayed, and in some cases selecting advertisements that are based on your interests.</li>
+              <section id="what" className="scroll-mt-32 rounded-3xl border border-gray-100 bg-white p-6">
+                <h2 className="text-2xl font-black text-gray-950">1. What Are Cookies</h2>
+                <p className="mt-4">
+                  Cookies are small text files placed on your computer or mobile device when you visit a website. They help websites work efficiently and provide useful information to the site owner.
+                </p>
+              </section>
+
+              <section id="types" className="scroll-mt-32 rounded-3xl border border-gray-100 bg-white p-6">
+                <h2 className="text-2xl font-black text-gray-950">2. Types of Cookies We Use</h2>
+                <ul className="mt-4 space-y-3">
+                  <li><strong className="text-gray-950">Essential Cookies:</strong> Strictly necessary for secure areas, cart, checkout, and account access.</li>
+                  <li><strong className="text-gray-950">Analytics Cookies:</strong> Help us understand site usage and improve the shopping experience.</li>
+                  <li><strong className="text-gray-950">Marketing Cookies:</strong> Help make promotional messages and product recommendations more relevant.</li>
                 </ul>
               </section>
 
-              <section id="management">
-                <h2 className="text-2xl font-bold text-[#1a1a1a] mb-4">3. Cookie Management</h2>
-                <p>You have the right to decide whether to accept or reject cookies. You can exercise your cookie rights by setting your preferences in the Cookie Preferences manager above. Additionally, you can set or amend your web browser controls to accept or refuse cookies. If you choose to reject cookies, you may still use our website though your access to some functionality and areas of our website may be restricted.</p>
+              <section id="management" className="scroll-mt-32 rounded-3xl border border-[#1a8a4a]/10 bg-[#f8fbf9] p-6">
+                <h2 className="text-2xl font-black text-gray-950">3. Cookie Management</h2>
+                <p className="mt-4">
+                  You can accept or reject optional cookies using the preference manager above. You can also update browser settings to control cookies directly.
+                </p>
               </section>
 
-              <section id="third">
-                <h2 className="text-2xl font-bold text-[#1a1a1a] mb-4">4. Third-party Cookies</h2>
-                <p>In some special cases, we also use cookies provided by trusted third parties. The following section details which third party cookies you might encounter through this site.</p>
-                <ul className="list-disc pl-5 mt-4 space-y-2">
-                  <li>This site uses Google Analytics which is one of the most widespread and trusted analytics solutions on the web for helping us to understand how you use the site and ways that we can improve your experience.</li>
-                  <li>We also use social media buttons and/or plugins on this site that allow you to connect with your social network in various ways.</li>
-                </ul>
+              <section id="third" className="scroll-mt-32 rounded-3xl border border-gray-100 bg-white p-6">
+                <h2 className="text-2xl font-black text-gray-950">4. Third-party Cookies</h2>
+                <p className="mt-4">
+                  Some cookies may be provided by trusted third parties such as analytics providers, payment services, delivery tools, and social plugins.
+                </p>
               </section>
 
-              <section id="updates">
-                <h2 className="text-2xl font-bold text-[#1a1a1a] mb-4">5. Updates to This Policy</h2>
-                <p>We may update this Cookie Policy from time to time in order to reflect, for example, changes to the cookies we use or for other operational, legal, or regulatory reasons. Please therefore re-visit this Cookie Policy regularly to stay informed about our use of cookies and related technologies.</p>
+              <section id="updates" className="scroll-mt-32 rounded-3xl border border-gray-100 bg-[#fbfcfd] p-6">
+                <div className="flex items-start gap-3">
+                  <Mail className="mt-1 h-6 w-6 text-[#1a8a4a]" />
+                  <div>
+                    <h2 className="text-2xl font-black text-gray-950">5. Updates to This Policy</h2>
+                    <p className="mt-3">
+                      We may update this Cookie Policy to reflect changes in cookies, services, legal requirements, or operational needs. Please review this page regularly.
+                    </p>
+                  </div>
+                </div>
               </section>
-
             </div>
-          </div>
+          </article>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
