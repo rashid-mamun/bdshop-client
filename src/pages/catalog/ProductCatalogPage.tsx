@@ -7,10 +7,22 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import {
   Search, SlidersHorizontal, LayoutGrid, List, ChevronLeft, ChevronRight,
-  Star, X, ChevronDown, ChevronUp, ShoppingCart
+  Star, X, ChevronDown, ChevronUp, ShoppingCart, Package, ShieldCheck, Truck, BadgePercent
 } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
 import { useToast } from '../../hooks/useToast';
+import type { Product } from '../../types/product';
+
+const CATALOG_FALLBACK_PRODUCTS: Product[] = [
+  { _id: 'demo-1', name: 'NovaTech', model: 'NovaBook Air 14 Pro', price: 89500, originalPrice: 104000, discountPercent: 14, img: '', description: 'Slim work laptop with vivid display and all-day battery life.', category: 'Electronics', averageRating: 4.8, reviewCount: 128, stock: 4 },
+  { _id: 'demo-2', name: 'SoundCore', model: 'Pulse ANC Wireless Headphones', price: 12500, originalPrice: 16500, discountPercent: 24, img: '', description: 'Noise-cancelling headphones tuned for travel and focus.', category: 'Accessories', averageRating: 4.7, reviewCount: 89, isNewArrival: true, stock: 9 },
+  { _id: 'demo-3', name: 'UrbanRide', model: 'Volt X Electric Scooter', price: 72500, originalPrice: 79000, discountPercent: 8, img: '', description: 'Daily commute scooter with long range and quick charging.', category: 'Vehicles', averageRating: 4.6, reviewCount: 54, stock: 3 },
+  { _id: 'demo-4', name: 'AeroFit', model: 'AeroFit Smart Watch S2', price: 8900, originalPrice: 12000, discountPercent: 26, img: '', description: 'Health tracking, calls, and a bright AMOLED display.', category: 'Electronics', averageRating: 4.9, reviewCount: 203, isNewArrival: true, stock: 12 },
+  { _id: 'demo-5', name: 'PixelMate', model: 'PixelMate 4K Action Camera', price: 21900, originalPrice: 26000, discountPercent: 16, img: '', description: 'Compact 4K action camera for travel and outdoor content.', category: 'Electronics', averageRating: 4.5, reviewCount: 77, stock: 6 },
+  { _id: 'demo-6', name: 'HomeHub', model: 'HomeHub Mini Speaker', price: 6400, originalPrice: 8200, discountPercent: 22, img: '', description: 'Room-filling smart speaker with deep bass and voice control.', category: 'Accessories', averageRating: 4.6, reviewCount: 64, isNewArrival: true, stock: 15 },
+  { _id: 'demo-7', name: 'DrivePro', model: 'DrivePro Dash Camera', price: 15900, originalPrice: 18900, discountPercent: 16, img: '', description: 'Wide angle recording, night vision, and emergency save.', category: 'Vehicles', averageRating: 4.4, reviewCount: 41, stock: 8 },
+  { _id: 'demo-8', name: 'ChargeMax', model: 'ChargeMax 65W GaN Charger', price: 3600, originalPrice: 4500, discountPercent: 20, img: '', description: 'Compact fast charger for phone, tablet, and laptop.', category: 'Accessories', averageRating: 4.8, reviewCount: 147, stock: 18 },
+];
 
 /* ─── Product skeleton card ──────────────────── */
 function ProductSkeleton() {
@@ -97,13 +109,15 @@ export default function ProductCatalogPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['products', page, category, sort, search, minPrice, maxPrice],
+    queryKey: ['products', page, category, sort, search, minPrice, maxPrice, ratingFilter, inStock],
     queryFn: async () => {
       const params: Record<string, string> = { page: String(page), limit: '12', sort };
       if (category) params.category = category;
       if (search) params.search = search;
       if (minPrice) params.minPrice = minPrice;
       if (maxPrice) params.maxPrice = maxPrice;
+      if (ratingFilter) params.rating = ratingFilter;
+      if (inStock) params.inStock = 'true';
       const res = await apiClient.get('/services', { params });
       return res.data.data;
     },
@@ -118,16 +132,15 @@ export default function ProductCatalogPage() {
     },
   });
 
-  let products = (data?.services || []) as any[];
+  const hasActiveFilters = !!(search || category || sort || minPrice || maxPrice || ratingFilter || inStock);
+  const apiProducts = (data?.services || []) as any[];
+  let products = apiProducts.length || hasActiveFilters ? apiProducts : CATALOG_FALLBACK_PRODUCTS;
   const pagination = data?.pagination;
   const totalPages = pagination?.pages || 1;
-  const totalCount = pagination?.total || 0;
+  const totalCount = pagination?.total || products.length;
+  const categories = categoriesData?.length ? categoriesData : ['Electronics', 'Vehicles', 'Accessories'];
 
-  // Client-side filtering for rating and stock since backend might not support it
-  if (ratingFilter) products = products.filter((p) => (p.averageRating || 0) >= Number(ratingFilter));
-  if (inStock) products = products.filter((p) => (p.stock || 0) > 0);
-
-  const hasActiveFilters = !!(search || category || sort || minPrice || maxPrice || ratingFilter || inStock);
+  // Client-side filtering removed - now handled by backend
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,7 +187,7 @@ export default function ProductCatalogPage() {
             />
             <span className={`text-sm ${!category ? 'text-[#1a8a4a] font-bold' : 'text-gray-700 group-hover:text-[#1a8a4a]'}`}>All Categories</span>
           </label>
-          {categoriesData?.map((cat) => (
+          {categories.map((cat) => (
             <label key={cat} className="flex items-center gap-3 cursor-pointer group">
               <input
                 type="radio"
@@ -271,14 +284,47 @@ export default function ProductCatalogPage() {
 
   return (
     <div className="bg-[#f8f9fa] min-h-screen pb-16 md:pb-0">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 md:py-8">
+      <section className="border-b border-gray-100 bg-white">
+        <div className="bd-container grid gap-6 py-8 md:grid-cols-[1.25fr_0.75fr] md:py-10">
+          <div>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#1a8a4a]/15 bg-[#e8f5ee] px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#1a8a4a]">
+              <ShieldCheck className="h-4 w-4" />
+              Verified marketplace
+            </div>
+            <h1 className="max-w-[19rem] break-words text-3xl font-black leading-tight text-gray-950 sm:max-w-2xl md:text-5xl">
+              {category ? `${category} collection` : 'Shop products that feel worth the scroll'}
+            </h1>
+            <p className="mt-3 max-w-[20rem] break-words text-sm leading-6 text-gray-500 sm:max-w-xl md:text-base">
+              Compare curated products, filter by price and rating, and checkout with clear delivery and stock signals.
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-3 self-end">
+            {[
+              { icon: Package, label: 'Products', value: isLoading ? '...' : totalCount.toLocaleString() },
+              { icon: Truck, label: 'Delivery', value: '24-72h' },
+              { icon: BadgePercent, label: 'Deals', value: 'Live' },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <Icon className="h-5 w-5 text-[#1a8a4a]" />
+                  <p className="mt-4 text-lg font-black text-gray-950">{item.value}</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{item.label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <div className="bd-container py-6 md:py-8">
 
         {/* Page title row */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-6 gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-black text-[#1a1a1a]">
+            <h2 className="text-2xl md:text-3xl font-black text-[#1a1a1a]">
               {category ? `${category}` : 'All Products'}
-            </h1>
+            </h2>
             <p className="text-gray-500 text-sm mt-1 font-medium">{isLoading ? 'Loading...' : `${totalCount} products found`}</p>
           </div>
           {/* Mobile filter toggle */}
@@ -321,9 +367,9 @@ export default function ProductCatalogPage() {
           <div className="flex-1 min-w-0">
 
             {/* Sort + View + Search bar */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] px-4 py-3 mb-6 flex flex-wrap items-center gap-3">
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] px-4 py-3 mb-6 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               {/* Search */}
-              <form onSubmit={handleSearchSubmit} className="flex gap-2 flex-1 min-w-[200px]">
+              <form onSubmit={handleSearchSubmit} className="flex gap-2 flex-1 min-w-0 sm:min-w-[200px]">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -342,7 +388,7 @@ export default function ProductCatalogPage() {
               <select
                 value={sort}
                 onChange={(e) => setParam('sort', e.target.value)}
-                className="text-sm font-medium border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30 focus:border-[#1a8a4a] text-[#1a1a1a]"
+                className="w-full text-sm font-medium border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30 focus:border-[#1a8a4a] text-[#1a1a1a] sm:w-auto"
               >
                 <option value="">Sort: Default</option>
                 <option value="price_asc">Price: Low to High</option>
@@ -389,12 +435,30 @@ export default function ProductCatalogPage() {
                     <button onClick={() => setParam('inStock', '')} className="hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
                   </span>
                 )}
+                {sort && (
+                  <span className="flex items-center gap-1.5 bg-gray-100 text-gray-700 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200">
+                    Sort: {sort.replace('_', ' ')}
+                    <button onClick={() => setParam('sort', '')} className="hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+                  </span>
+                )}
+                {(minPrice || maxPrice) && (
+                  <span className="flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-200">
+                    ৳{(minPrice || '0')} - ৳{(maxPrice || '500000')}
+                    <button onClick={() => { setParam('minPrice', ''); setParam('maxPrice', ''); }} className="hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+                  </span>
+                )}
+                {ratingFilter && (
+                  <span className="flex items-center gap-1.5 bg-yellow-50 text-yellow-700 text-xs font-bold px-3 py-1.5 rounded-full border border-yellow-200">
+                    {ratingFilter}+ stars
+                    <button onClick={() => setParam('rating', '')} className="hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+                  </span>
+                )}
               </div>
             )}
 
             {/* Product Grid / List */}
             {isLoading ? (
-              <div className={`grid gap-4 md:gap-6 ${viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+              <div className={`grid gap-4 md:gap-6 ${viewMode === 'grid' ? 'grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
                 {Array.from({ length: 12 }).map((_, i) => <ProductSkeleton key={i} />)}
               </div>
             ) : products.length > 0 ? (
@@ -404,7 +468,17 @@ export default function ProductCatalogPage() {
                     {products.map((p: any) => (
                       <div key={p._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-5 hover:shadow-md transition-shadow group">
                         <div className="relative w-28 h-28 sm:w-40 sm:h-40 shrink-0 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center p-2">
-                          <img src={p.img || ''} alt={p.model} className="max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform" />
+                          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#eefaf3] via-white to-[#f3f7ff] text-[#1a8a4a]">
+                            <Package className="h-10 w-10 opacity-70" />
+                          </div>
+                          <img
+                            src={p.img || ''}
+                            alt={p.model}
+                            className="relative z-10 max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform"
+                            onError={(event) => {
+                              event.currentTarget.style.display = 'none';
+                            }}
+                          />
                           {p.isNewArrival && (
                             <span className="absolute top-2 left-2 bg-[#1a8a4a] text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">NEW</span>
                           )}
@@ -438,7 +512,7 @@ export default function ProductCatalogPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                  <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                     {products.map((p: any) => <ProductCard key={p._id} product={p} />)}
                   </div>
                 )}
