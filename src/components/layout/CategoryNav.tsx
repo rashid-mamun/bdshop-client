@@ -15,13 +15,13 @@ export function CategoryNav() {
   const activeCategory = searchParams.get('category') || '';
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-16 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <nav className="bg-white border-b border-gray-200 sticky top-16 z-30">
+      <div className="bd-container">
         <div className="flex items-center gap-0 overflow-x-auto scrollbar-hide">
           {CATEGORIES.map((cat) => {
             const isActive = activeCategory === cat.value && !cat.special;
             const href = cat.special === 'deals'
-              ? '/products?sort=price-asc'
+              ? '/products?sort=price_asc'
               : cat.special === 'new'
               ? '/products?sort=newest'
               : cat.value

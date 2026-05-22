@@ -1,13 +1,26 @@
-import { ShoppingCart, X, Plus, Minus, Trash2, ArrowRight, ShoppingBag } from 'lucide-react';
+import { ShoppingCart, X, Plus, Minus, Trash2, ArrowRight, ShoppingBag, Heart, Package, ShieldCheck, Truck } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
+import { useWishlistStore } from '../../store/useWishlistStore';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function CartDrawer() {
   const { items, isCartOpen, setCartOpen, removeItem, updateQuantity, clearCart } = useCartStore();
+  const { addItem: addToWishlist } = useWishlistStore();
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const saveForLater = (item: (typeof items)[number]) => {
+    addToWishlist({
+      _id: item._id,
+      name: item.name,
+      model: item.model,
+      price: item.price,
+      img: item.img,
+    });
+    removeItem(item._id);
+  };
 
   return (
     <AnimatePresence>
@@ -59,12 +72,13 @@ export function CartDrawer() {
                   </div>
                   <p className="font-semibold text-[#1a1a1a] mb-1">Your cart is empty</p>
                   <p className="text-sm text-gray-500 mb-5">Add some products to get started</p>
-                  <button
+                  <Link
+                    to="/products"
                     onClick={() => setCartOpen(false)}
                     className="bg-[#1a8a4a] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#157a3f] transition-colors"
                   >
                     Browse Products
-                  </button>
+                  </Link>
                 </div>
               ) : (
                 <AnimatePresence>
@@ -77,11 +91,19 @@ export function CartDrawer() {
                       transition={{ duration: 0.2 }}
                       className="flex gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors"
                     >
-                      <img
-                        src={item.img || 'https://via.placeholder.com/100'}
-                        alt={item.model}
-                        className="w-16 h-16 object-cover rounded-xl bg-white border border-gray-100 shrink-0"
-                      />
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white">
+                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#eefaf3] to-white text-[#1a8a4a]">
+                          <Package className="h-6 w-6 opacity-70" />
+                        </div>
+                        <img
+                          src={item.img || ''}
+                          alt={item.model}
+                          className="relative z-10 h-full w-full object-contain p-1.5"
+                          onError={(event) => {
+                            event.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-sm text-[#1a1a1a] line-clamp-1">{item.model}</h4>
                         <p className="text-xs text-gray-500 mt-0.5">{item.name}</p>
@@ -116,6 +138,12 @@ export function CartDrawer() {
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
+                        <button
+                          onClick={() => saveForLater(item)}
+                          className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-red-500"
+                        >
+                          <Heart className="h-3.5 w-3.5" /> Save for later
+                        </button>
                       </div>
                     </motion.div>
                   ))}
@@ -126,6 +154,16 @@ export function CartDrawer() {
             {/* Footer */}
             {items.length > 0 && (
               <div className="border-t border-gray-100 px-5 py-5 space-y-4 bg-white">
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-600">
+                  <div className="flex items-center gap-1.5 rounded-xl bg-gray-50 px-3 py-2">
+                    <Truck className="h-3.5 w-3.5 text-[#1a8a4a]" />
+                    24-72h delivery
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-xl bg-gray-50 px-3 py-2">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#1a8a4a]" />
+                    Secure checkout
+                  </div>
+                </div>
                 {/* Subtotal */}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-gray-500">

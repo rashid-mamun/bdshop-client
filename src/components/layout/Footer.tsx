@@ -76,7 +76,7 @@ export function Footer() {
     <footer className="bg-[#1a1a1a] text-gray-300">
       {/* Newsletter Banner */}
       <div className="bg-[#1a8a4a] py-10 px-6">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="bd-container flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <h3 className="text-xl font-bold text-white">Get exclusive deals in your inbox</h3>
             <p className="text-green-100 text-sm mt-1">Subscribe now and get 10% off your first order</p>
@@ -110,7 +110,7 @@ export function Footer() {
       </div>
 
       {/* Main Footer */}
-      <div className="max-w-7xl mx-auto px-6 py-14 border-t-2 border-green-500">
+      <div className="bd-container py-14 border-t-2 border-green-500">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
 
           {/* Brand Column */}
@@ -228,7 +228,7 @@ export function Footer() {
 
       {/* Bottom Bar */}
       <div className="border-t border-gray-800 py-5 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500">
+        <div className="bd-container flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-500">
           <span>© {new Date().getFullYear()} BD Shop. All rights reserved.</span>
           <div className="flex items-center">
             <Link to="/privacy-policy" className="hover:text-green-400 transition-colors">Privacy Policy</Link>
