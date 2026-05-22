@@ -1,0 +1,16 @@
+{
+  "name": "BDShop",
+  "short_name": "BDShop",
+  "description": "Premium ecommerce marketplace for Bangladesh.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#1a8a4a",
+  "icons": [
+    {
+      "src": "/bdshop-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
