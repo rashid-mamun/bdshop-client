@@ -1,35 +1,23 @@
 import { Link } from 'react-router-dom';
 import { useCartStore } from '../store/useCartStore';
 import { useWishlistStore } from '../store/useWishlistStore';
+import { useCompareStore } from '../store/useCompareStore';
 import { useToast } from '../hooks/useToast';
-import { Heart, ShoppingCart, Eye, Star } from 'lucide-react';
+import { BarChart3, Heart, Package, ShieldCheck, ShoppingCart, Star, Truck } from 'lucide-react';
+import type { Product } from '../types/product';
 
 interface ProductProps {
-  product: {
-    _id: string;
-    name: string;
-    model: string;
-    price: number;
-    img: string;
-    description: string;
-    category?: string;
-    config?: string;
-    averageRating?: number;
-    reviewCount?: number;
-    originalPrice?: number;
-    isFeatured?: boolean;
-    isFlashDeal?: boolean;
-    discountPercent?: number;
-    isNewArrival?: boolean;
-  };
-  discountPercent?: number; // Kept for backward compatibility if passed directly
+  product: Product;
+  discountPercent?: number;
 }
 
 export function ProductCard({ product, discountPercent }: ProductProps) {
   const { addItem } = useCartStore();
   const { toggleItem, isInWishlist } = useWishlistStore();
+  const { toggleItem: toggleCompare, isInCompare } = useCompareStore();
   const { success } = useToast();
   const wishlisted = isInWishlist(product._id);
+  const compared = isInCompare(product._id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -53,6 +41,25 @@ export function ProductCard({ product, discountPercent }: ProductProps) {
       price: product.price,
       img: product.img,
       category: product.category,
+      originalPrice: product.originalPrice,
+      discountPercent: product.discountPercent,
+      stock: product.stock,
+    });
+  };
+
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    toggleCompare({
+      _id: product._id,
+      name: product.name,
+      model: product.model,
+      price: product.price,
+      img: product.img,
+      category: product.category,
+      originalPrice: product.originalPrice,
+      averageRating: product.averageRating,
+      reviewCount: product.reviewCount,
+      stock: product.stock,
     });
   };
 
@@ -61,16 +68,22 @@ export function ProductCard({ product, discountPercent }: ProductProps) {
   const discount = discountPercent || product.discountPercent || 0;
 
   return (
-    <Link to={`/products/${product._id}`} className="block group">
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 overflow-hidden h-full flex flex-col">
+    <Link to={`/products/${product._id}`} className="block group min-w-0">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 overflow-hidden h-full flex min-w-0 flex-col">
 
         {/* Image Container */}
-        <div className="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-4">
+        <div className="relative aspect-[4/3] overflow-hidden bg-gray-50 flex items-center justify-center p-4 sm:aspect-square">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#eefaf3] via-white to-[#f3f7ff] text-[#1a8a4a]">
+            <Package className="h-12 w-12 opacity-70" />
+          </div>
           <img
             src={product.img || 'https://via.placeholder.com/400x400'}
             alt={product.model}
-            className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500 ease-out mix-blend-multiply"
+            className="relative z-10 max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500 ease-out mix-blend-multiply"
             loading="lazy"
+            onError={(event) => {
+              event.currentTarget.style.display = 'none';
+            }}
           />
 
           {/* Badges */}
@@ -90,21 +103,25 @@ export function ProductCard({ product, discountPercent }: ProductProps) {
           {/* Overlay Actions — appear on hover */}
           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-all duration-300" />
 
-          {/* Wishlist */}
-          <button
-            onClick={handleWishlist}
-            className={`
-              absolute top-2.5 right-2.5 z-10 h-8 w-8 rounded-full flex items-center justify-center shadow-md
-              transition-all duration-200 opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0
-              ${wishlisted ? 'bg-red-50 text-red-500' : 'bg-white text-gray-500 hover:text-red-500'}
-            `}
-            aria-label="Toggle wishlist"
-          >
-            <Heart className={`h-4 w-4 ${wishlisted ? 'fill-current' : ''}`} />
-          </button>
+          <div className="absolute top-2.5 right-2.5 z-10 flex flex-col gap-2">
+            <button
+              onClick={handleWishlist}
+              className={`h-9 w-9 rounded-full flex items-center justify-center shadow-md transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 md:translate-y-1 md:group-hover:translate-y-0 ${wishlisted ? 'bg-red-50 text-red-500' : 'bg-white text-gray-500 hover:text-red-500'}`}
+              aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+            >
+              <Heart className={`h-4 w-4 ${wishlisted ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={handleCompare}
+              className={`h-9 w-9 rounded-full flex items-center justify-center shadow-md transition-all duration-200 md:opacity-0 md:group-hover:opacity-100 md:translate-y-1 md:group-hover:translate-y-0 ${compared ? 'bg-[#e8f5ee] text-[#1a8a4a]' : 'bg-white text-gray-500 hover:text-[#1a8a4a]'}`}
+              aria-label={compared ? 'Remove from compare' : 'Add to compare'}
+            >
+              <BarChart3 className="h-4 w-4" />
+            </button>
+          </div>
 
           {/* Quick View */}
-          <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
+          <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-0 md:translate-y-full md:group-hover:translate-y-0 transition-transform duration-300 ease-out z-20">
             <div className="flex gap-2">
               <button
                 onClick={handleAddToCart}
@@ -146,8 +163,8 @@ export function ProductCard({ product, discountPercent }: ProductProps) {
 
           {/* Price Row */}
           <div className="flex items-end justify-between mt-auto pt-3 border-t border-gray-50">
-            <div className="flex flex-col">
-              <div className="flex items-baseline gap-2">
+            <div className="flex min-w-0 flex-col">
+              <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-lg font-black text-[#1a8a4a]">
                   ৳{product.price.toLocaleString()}
                 </span>
@@ -158,6 +175,22 @@ export function ProductCard({ product, discountPercent }: ProductProps) {
                 ) : null}
               </div>
             </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-gray-500">
+            <span className="inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-1">
+              <Truck className="h-3.5 w-3.5 text-[#1a8a4a]" />
+              24-72h delivery
+            </span>
+            {typeof product.stock === 'number' && product.stock <= 5 ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-1 text-red-600">
+                Only {product.stock} left
+              </span>
+            ) : (
+              <span className="hidden items-center gap-1 rounded-full bg-[#e8f5ee] px-2 py-1 text-[#1a8a4a] sm:inline-flex">
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Verified
+              </span>
+            )}
           </div>
         </div>
       </div>
