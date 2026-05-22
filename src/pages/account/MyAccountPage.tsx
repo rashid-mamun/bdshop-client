@@ -1,18 +1,19 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useWishlistStore } from '../../store/useWishlistStore';
 import apiClient from '../../services/apiClient';
 import { LayoutDashboard, ShoppingBag, Heart, MapPin, KeyRound, LogOut, Package, Star, Edit, Plus, Clock, CheckCircle } from 'lucide-react';
 import { useToast } from '../../hooks/useToast';
-
-const BD_DIVISIONS = ['Dhaka', 'Chittagong', 'Rajshahi', 'Sylhet', 'Khulna', 'Barisal', 'Rangpur', 'Mymensingh'];
+import { ProductCard } from '../../components/ProductCard';
 
 export default function MyAccountPage() {
   const { user, logout } = useAuthStore();
   const { success } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const { items: wishlistItems } = useWishlistStore();
 
-  const { data: ordersData, isLoading } = useQuery({
+  const { data: ordersData } = useQuery({
     queryKey: ['my-orders'],
     queryFn: async () => {
       const res = await apiClient.get('/orders/my-orders');
@@ -49,7 +50,7 @@ export default function MyAccountPage() {
 
   return (
     <div className="bg-[#f8f9fa] min-h-screen py-10 px-4">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
+      <div className="bd-container flex flex-col md:flex-row gap-8">
         
         {/* Sidebar */}
         <div className="w-full md:w-72 shrink-0">
@@ -209,14 +210,75 @@ export default function MyAccountPage() {
             </div>
           )}
 
+          {/* Orders Tab */}
+          {activeTab === 'orders' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <h2 className="text-2xl font-black text-[#1a1a1a]">My Orders</h2>
+              <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                {orders.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center py-6">You have no orders yet.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-gray-400 text-xs uppercase tracking-wider border-b border-gray-100">
+                          <th className="pb-3 font-semibold">Order ID</th>
+                          <th className="pb-3 font-semibold">Date</th>
+                          <th className="pb-3 font-semibold">Total</th>
+                          <th className="pb-3 font-semibold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {orders.map((order: any) => (
+                          <tr key={order._id}>
+                            <td className="py-4 text-sm font-bold text-[#1a1a1a]">{order._id.substring(0,8).toUpperCase()}</td>
+                            <td className="py-4 text-sm text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</td>
+                            <td className="py-4 text-sm font-black text-[#1a8a4a]">৳{order.total?.toLocaleString()}</td>
+                            <td className="py-4">
+                              <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${getStatusBadge(order.status)}`}>
+                                {order.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Wishlist Tab */}
+          {activeTab === 'wishlist' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <h2 className="text-2xl font-black text-[#1a1a1a]">My Wishlist</h2>
+              {wishlistItems.length === 0 ? (
+                <div className="bg-white rounded-3xl p-12 shadow-sm border border-gray-100 text-center">
+                  <div className="h-16 w-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Heart className="h-8 w-8 text-red-300" />
+                  </div>
+                  <h3 className="text-xl font-bold text-[#1a1a1a] mb-2">Your wishlist is empty</h3>
+                  <p className="text-gray-500 text-sm">Save items you like to view them later.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {wishlistItems.map((item) => (
+                    <ProductCard key={item._id} product={item as any} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Fallback for other tabs */}
-          {['orders', 'wishlist', 'reviews'].includes(activeTab) && (
+          {['reviews'].includes(activeTab) && (
             <div className="bg-white rounded-3xl p-12 shadow-sm border border-gray-100 text-center animate-in fade-in duration-300">
               <div className="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Package className="h-8 w-8 text-gray-300" />
               </div>
               <h3 className="text-xl font-bold text-[#1a1a1a] mb-2">Coming Soon</h3>
-              <p className="text-gray-500">This section is currently under development.</p>
+              <p className="text-gray-500 text-sm">This section is currently under development.</p>
             </div>
           )}
           
@@ -225,4 +287,3 @@ export default function MyAccountPage() {
     </div>
   );
 }
-

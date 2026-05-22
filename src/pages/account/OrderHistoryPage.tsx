@@ -65,7 +65,7 @@ export default function OrderHistoryPage() {
 
   return (
     <div className="bg-[#f8f9fa] min-h-screen py-10 px-4">
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="bd-container max-w-5xl space-y-6">
         
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>

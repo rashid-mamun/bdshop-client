@@ -1,17 +1,17 @@
 import { useState } from 'react';
-import { Package, Search, CheckCircle, Clock, Truck, Home } from 'lucide-react';
+import { Package, Search, Clock, Truck, Home } from 'lucide-react';
 
 const MOCK_ORDER = {
   id: 'BDS-8A9X2M1',
   status: 'shipped', // placed, processing, shipped, delivered
   courier: 'Pathao',
   trackingNo: 'PTH-992837461',
-  estimatedDelivery: 'Oct 15, 2026',
+  estimatedDelivery: 'May 24, 2026',
   timeline: [
-    { status: 'placed', title: 'Order Placed', date: 'Oct 12, 2026, 10:30 AM', icon: Package, completed: true },
-    { status: 'processing', title: 'Processing', date: 'Oct 12, 2026, 02:15 PM', icon: Clock, completed: true },
-    { status: 'shipped', title: 'Shipped', date: 'Oct 13, 2026, 09:45 AM', icon: Truck, completed: true, active: true },
-    { status: 'delivered', title: 'Delivered', date: 'Estimated: Oct 15', icon: Home, completed: false }
+    { status: 'placed', title: 'Order Placed', date: 'May 21, 2026, 10:30 AM', icon: Package, completed: true },
+    { status: 'processing', title: 'Processing', date: 'May 21, 2026, 02:15 PM', icon: Clock, completed: true },
+    { status: 'shipped', title: 'Shipped', date: 'May 22, 2026, 09:45 AM', icon: Truck, completed: true, active: true },
+    { status: 'delivered', title: 'Delivered', date: 'Estimated: May 24', icon: Home, completed: false }
   ]
 };
 
@@ -31,7 +31,7 @@ export default function TrackOrderPage() {
 
   return (
     <div className="bg-[#f8f9fa] min-h-screen py-16 px-4">
-      <div className="max-w-2xl mx-auto space-y-10">
+      <div className="bd-container max-w-2xl space-y-10">
         
         <div className="text-center space-y-4">
           <div className="h-16 w-16 bg-[#1a8a4a] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[#1a8a4a]/20">

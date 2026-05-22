@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Edit3, Home, Loader2, MapPin, Plus, Star, Trash2, Truck, X } from 'lucide-react';
 import apiClient from '../../../services/apiClient';
 import { useToast } from '../../../hooks/useToast';
-import { MapPin, Plus, Edit3, Trash2, Star, Loader2, X } from 'lucide-react';
 
 const BD_DIVISIONS = ['Dhaka', 'Chittagong', 'Rajshahi', 'Khulna', 'Barisal', 'Sylhet', 'Rangpur', 'Mymensingh'];
 const BD_DISTRICTS = [
@@ -58,12 +59,25 @@ export default function AddressesTab() {
   });
 
   const openAdd = () => { setEditingAddress(null); setForm(emptyForm); setModalOpen(true); };
-  const openEdit = (addr: any) => { setEditingAddress(addr); setForm({ name: addr.name, phone: addr.phone, addressLine: addr.addressLine, district: addr.district, division: addr.division, postalCode: addr.postalCode || '', isDefault: addr.isDefault }); setModalOpen(true); };
+  const openEdit = (addr: any) => {
+    setEditingAddress(addr);
+    setForm({
+      name: addr.name,
+      phone: addr.phone,
+      addressLine: addr.addressLine,
+      district: addr.district,
+      division: addr.division,
+      postalCode: addr.postalCode || '',
+      isDefault: addr.isDefault,
+    });
+    setModalOpen(true);
+  };
   const closeModal = () => { setModalOpen(false); setEditingAddress(null); setForm(emptyForm); };
 
   const handleSubmit = () => {
     if (!form.name || !form.phone || !form.addressLine || !form.district || !form.division) {
-      toastError('Please fill all required fields'); return;
+      toastError('Please fill all required fields');
+      return;
     }
     if (editingAddress) updateMutation.mutate({ id: editingAddress._id, data: form });
     else createMutation.mutate(form);
@@ -72,135 +86,165 @@ export default function AddressesTab() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-gray-900">Saved Addresses</h3>
-        <button onClick={openAdd} className="flex items-center gap-2 bg-[#1a8a4a] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#157a3f] transition-colors">
-          <Plus className="h-4 w-4" /> Add New Address
-        </button>
-      </div>
+    <div className="space-y-5">
+      <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#e8f5ee] px-3 py-1 text-xs font-black uppercase tracking-wider text-[#1a8a4a]">
+              <Truck className="h-4 w-4" />
+              Delivery book
+            </div>
+            <h2 className="text-2xl font-black tracking-tight text-gray-950">Saved addresses</h2>
+            <p className="mt-1 text-sm font-medium text-gray-500">Manage delivery locations for faster checkout.</p>
+          </div>
+          <button
+            onClick={openAdd}
+            className="inline-flex min-h-[44px] w-fit items-center gap-2 rounded-xl bg-[#1a8a4a] px-4 text-sm font-black text-white transition hover:bg-[#157a3f]"
+          >
+            <Plus className="h-4 w-4" />
+            Add address
+          </button>
+        </div>
+      </section>
 
       {isLoading ? (
-        Array.from({ length: 2 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse h-32" />
-        ))
+        <div className="grid gap-4 xl:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="h-48 animate-pulse rounded-3xl border border-gray-100 bg-white" />
+          ))}
+        </div>
       ) : addresses.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
-          <div className="h-16 w-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MapPin className="h-8 w-8 text-gray-300" />
+        <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-12 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e8f5ee] text-[#1a8a4a]">
+            <MapPin className="h-8 w-8" />
           </div>
-          <h3 className="font-bold text-gray-800 mb-1">No addresses saved</h3>
-          <p className="text-gray-500 text-sm">Add a delivery address to get started</p>
+          <h3 className="mt-4 text-lg font-black text-gray-900">No addresses saved</h3>
+          <p className="mt-2 text-sm font-medium text-gray-500">Add a delivery address before checkout.</p>
         </div>
       ) : (
-        addresses.map((addr: any) => (
-          <div key={addr._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 relative">
-            {addr.isDefault && (
-              <span className="absolute top-4 right-4 bg-[#1a8a4a] text-white text-xs font-bold px-2.5 py-1 rounded-full">DEFAULT</span>
-            )}
-            <div className="flex items-start gap-4">
-              <div className="h-10 w-10 bg-[#e8f5ee] rounded-xl flex items-center justify-center shrink-0">
-                <MapPin className="h-5 w-5 text-[#1a8a4a]" />
+        <div className="grid gap-4 xl:grid-cols-2">
+          {addresses.map((addr: any) => (
+            <article key={addr._id} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#e8f5ee] text-[#1a8a4a]">
+                    <Home className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-black text-gray-950">{addr.name}</h3>
+                      {addr.isDefault && (
+                        <span className="rounded-full bg-[#1a8a4a] px-2.5 py-1 text-[10px] font-black uppercase text-white">Default</span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm font-bold text-gray-600">{addr.phone}</p>
+                    <p className="mt-3 text-sm font-medium leading-6 text-gray-500">{addr.addressLine}</p>
+                    <p className="text-sm font-medium text-gray-500">{addr.district}, {addr.division} {addr.postalCode && `- ${addr.postalCode}`}</p>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0 pr-20">
-                <p className="font-bold text-gray-900">{addr.name}</p>
-                <p className="text-sm text-gray-600">{addr.phone}</p>
-                <p className="text-sm text-gray-600 mt-1">{addr.addressLine}</p>
-                <p className="text-sm text-gray-600">{addr.district}, {addr.division} {addr.postalCode && `- ${addr.postalCode}`}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-gray-50">
-              {!addr.isDefault && (
-                <button onClick={() => defaultMutation.mutate(addr._id)} disabled={defaultMutation.isPending}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#1a8a4a] border border-[#1a8a4a]/30 px-3 py-1.5 rounded-lg hover:bg-[#e8f5ee] transition-colors">
-                  <Star className="h-3 w-3" /> Set Default
+
+              <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+                {!addr.isDefault && (
+                  <button
+                    onClick={() => defaultMutation.mutate(addr._id)}
+                    disabled={defaultMutation.isPending}
+                    className="inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-[#1a8a4a]/25 px-3 text-xs font-black text-[#1a8a4a] hover:bg-[#e8f5ee]"
+                  >
+                    <Star className="h-3.5 w-3.5" />
+                    Set default
+                  </button>
+                )}
+                <button onClick={() => openEdit(addr)} className="inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-gray-200 px-3 text-xs font-black text-gray-700 hover:bg-gray-50">
+                  <Edit3 className="h-3.5 w-3.5" />
+                  Edit
                 </button>
-              )}
-              <button onClick={() => openEdit(addr)}
-                className="flex items-center gap-1.5 text-xs font-semibold text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-                <Edit3 className="h-3 w-3" /> Edit
-              </button>
-              <button onClick={() => deleteMutation.mutate(addr._id)} disabled={deleteMutation.isPending}
-                className="flex items-center gap-1.5 text-xs font-semibold text-red-600 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors ml-auto">
-                <Trash2 className="h-3 w-3" /> Delete
-              </button>
-            </div>
-          </div>
-        ))
+                <button
+                  onClick={() => deleteMutation.mutate(addr._id)}
+                  disabled={deleteMutation.isPending}
+                  className="ml-auto inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-red-200 px-3 text-xs font-black text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
       )}
 
-      {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeModal} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 z-10">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-gray-900">{editingAddress ? 'Edit Address' : 'Add New Address'}</h3>
-              <button onClick={closeModal} className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
-                <X className="h-4 w-4 text-gray-600" />
+          <div className="absolute inset-0 bg-gray-950/50 backdrop-blur-sm" onClick={closeModal} />
+          <div className="relative z-10 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-2xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white p-5">
+              <div>
+                <h3 className="text-lg font-black text-gray-950">{editingAddress ? 'Edit address' : 'Add address'}</h3>
+                <p className="text-sm font-medium text-gray-500">Use accurate details for smooth delivery.</p>
+              </div>
+              <button onClick={closeModal} className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200">
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Full Name *</label>
-                <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 h-11 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Your full name" />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Phone Number *</label>
-                <div className="flex">
-                  <span className="px-3 bg-gray-100 border border-r-0 border-gray-200 rounded-l-xl flex items-center text-gray-500 text-sm font-medium">+880</span>
-                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    className="flex-1 border border-gray-200 rounded-r-xl px-4 h-11 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="1XXXXXXXXX" />
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Address Line *</label>
-                <input value={form.addressLine} onChange={e => setForm(f => ({ ...f, addressLine: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 h-11 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="Street, Building, Apt" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-1.5">Division *</label>
-                  <select value={form.division} onChange={e => setForm(f => ({ ...f, division: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-4 h-11 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white">
-                    <option value="">Select Division</option>
-                    {BD_DIVISIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-1.5">District *</label>
-                  <select value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-xl px-4 h-11 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white">
-                    <option value="">Select District</option>
-                    {BD_DISTRICTS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-gray-700 block mb-1.5">Postal Code</label>
-                <input value={form.postalCode} onChange={e => setForm(f => ({ ...f, postalCode: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-xl px-4 h-11 text-sm focus:ring-2 focus:ring-green-500 outline-none" placeholder="1200" />
-              </div>
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input type="checkbox" checked={form.isDefault} onChange={e => setForm(f => ({ ...f, isDefault: e.target.checked }))}
-                  className="w-4 h-4 rounded accent-[#1a8a4a]" />
-                <span className="text-sm font-medium text-gray-700">Set as default address</span>
+
+            <div className="grid gap-4 p-5 sm:grid-cols-2">
+              <Field label="Full name">
+                <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} className={inputCls} placeholder="Your full name" />
+              </Field>
+              <Field label="Phone number">
+                <input value={form.phone} onChange={(event) => setForm((current) => ({ ...current, phone: event.target.value }))} className={inputCls} placeholder="+880 1XXXXXXXXX" />
+              </Field>
+              <Field label="Address line" wide>
+                <input value={form.addressLine} onChange={(event) => setForm((current) => ({ ...current, addressLine: event.target.value }))} className={inputCls} placeholder="Street, building, apartment" />
+              </Field>
+              <Field label="Division">
+                <select value={form.division} onChange={(event) => setForm((current) => ({ ...current, division: event.target.value }))} className={inputCls}>
+                  <option value="">Select division</option>
+                  {BD_DIVISIONS.map((division) => <option key={division} value={division}>{division}</option>)}
+                </select>
+              </Field>
+              <Field label="District">
+                <select value={form.district} onChange={(event) => setForm((current) => ({ ...current, district: event.target.value }))} className={inputCls}>
+                  <option value="">Select district</option>
+                  {BD_DISTRICTS.map((district) => <option key={district} value={district}>{district}</option>)}
+                </select>
+              </Field>
+              <Field label="Postal code">
+                <input value={form.postalCode} onChange={(event) => setForm((current) => ({ ...current, postalCode: event.target.value }))} className={inputCls} placeholder="1200" />
+              </Field>
+              <label className="flex items-center gap-3 rounded-2xl bg-gray-50 px-4 py-3 sm:col-span-2">
+                <input type="checkbox" checked={form.isDefault} onChange={(event) => setForm((current) => ({ ...current, isDefault: event.target.checked }))} className="h-4 w-4 accent-[#1a8a4a]" />
+                <span className="text-sm font-black text-gray-700">Set as default address</span>
               </label>
             </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={closeModal} className="flex-1 h-11 border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition-colors">
+
+            <div className="flex gap-3 border-t border-gray-100 p-5">
+              <button onClick={closeModal} className="min-h-[44px] flex-1 rounded-xl border border-gray-200 text-sm font-black text-gray-700 hover:bg-gray-50">
                 Cancel
               </button>
-              <button onClick={handleSubmit} disabled={isSaving}
-                className="flex-1 h-11 bg-[#1a8a4a] text-white rounded-xl text-sm font-semibold hover:bg-[#157a3f] disabled:opacity-60 flex items-center justify-center gap-2 transition-colors">
+              <button
+                onClick={handleSubmit}
+                disabled={isSaving}
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-xl bg-[#1a8a4a] text-sm font-black text-white hover:bg-[#157a3f] disabled:opacity-60"
+              >
                 {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-                {editingAddress ? 'Save Changes' : 'Add Address'}
+                {editingAddress ? 'Save changes' : 'Add address'}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+const inputCls = 'h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-sm font-medium outline-none transition focus:border-[#1a8a4a] focus:ring-2 focus:ring-[#1a8a4a]/15';
+
+function Field({ label, wide, children }: { label: string; wide?: boolean; children: ReactNode }) {
+  return (
+    <label className={wide ? 'sm:col-span-2' : ''}>
+      <span className="mb-1.5 block text-sm font-black text-gray-800">{label}</span>
+      {children}
+    </label>
   );
 }

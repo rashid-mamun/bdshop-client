@@ -1,51 +1,37 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
+import { Edit3, Loader2, MessageSquareText, ShoppingBag, Star } from 'lucide-react';
 import apiClient from '../../../services/apiClient';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useToast } from '../../../hooks/useToast';
-import { Link } from 'react-router-dom';
-import { Star, ShoppingBag, Edit3, Loader2 } from 'lucide-react';
 
 function StarSelector({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const [hover, setHover] = useState(0);
   return (
     <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((s) => (
+      {[1, 2, 3, 4, 5].map((star) => (
         <button
-          key={s}
+          key={star}
           type="button"
-          onClick={() => onChange(s)}
-          onMouseEnter={() => setHover(s)}
+          onClick={() => onChange(star)}
+          onMouseEnter={() => setHover(star)}
           onMouseLeave={() => setHover(0)}
-          className="focus:outline-none"
+          className="rounded-lg p-1 focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30"
         >
-          <Star
-            className={`h-6 w-6 transition-colors ${
-              s <= (hover || value) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'
-            }`}
-          />
+          <Star className={`h-6 w-6 transition-colors ${star <= (hover || value) ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />
         </button>
       ))}
     </div>
   );
 }
 
-function ReviewCard({ review, onEdit }: { review: any; onEdit: () => void }) {
+function RatingStars({ value }: { value: number }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex gap-0.5">
-          {[1, 2, 3, 4, 5].map((s) => (
-            <Star key={s} className={`h-4 w-4 ${s <= review.star ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`} />
-          ))}
-        </div>
-        <button onClick={onEdit} className="flex items-center gap-1 text-xs text-[#1a8a4a] hover:underline font-semibold">
-          <Edit3 className="h-3 w-3" /> Edit
-        </button>
-      </div>
-      {review.title && <p className="text-sm font-semibold text-gray-900 mb-1">{review.title}</p>}
-      {review.description && <p className="text-sm text-gray-600">{review.description}</p>}
-      <p className="text-xs text-gray-400 mt-2">{new Date(review.createdAt).toLocaleDateString()}</p>
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star key={star} className={`h-4 w-4 ${star <= value ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />
+      ))}
     </div>
   );
 }
@@ -56,7 +42,6 @@ export default function ReviewsTab() {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ star: 5, title: '', description: '' });
-  const [openWriteFor, setOpenWriteFor] = useState<string | null>(null);
 
   const { data: reviewsData, isLoading } = useQuery({
     queryKey: ['my-reviews', user?.email],
@@ -65,20 +50,6 @@ export default function ReviewsTab() {
       return res.data.data.reviews || [];
     },
     enabled: !!user,
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      const res = await apiClient.post('/reviews', payload);
-      return res.data;
-    },
-    onSuccess: () => {
-      success('Review submitted!');
-      setOpenWriteFor(null);
-      setForm({ star: 5, title: '', description: '' });
-      queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
-    },
-    onError: (err: any) => toastError(err.response?.data?.message || 'Failed to submit review'),
   });
 
   const updateMutation = useMutation({
@@ -96,98 +67,120 @@ export default function ReviewsTab() {
 
   const reviews = reviewsData || [];
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5 animate-pulse">
-            <div className="flex gap-4">
-              <div className="h-16 w-16 bg-gray-100 rounded-xl" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-gray-100 rounded w-1/3" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (reviews.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
-        <div className="h-20 w-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ShoppingBag className="h-10 w-10 text-gray-300" />
-        </div>
-        <h3 className="font-bold text-gray-800 mb-2">No reviews yet</h3>
-        <p className="text-gray-500 text-sm mb-6">Purchase products and share your experience</p>
-        <Link to="/products" className="inline-flex items-center gap-2 bg-[#1a8a4a] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#157a3f] transition-colors">
-          Shop Now
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      {reviews.map((review: any) => {
-        const isEditing = editingId === review._id;
-        const isSubmitting = updateMutation.isPending;
-
-        return (
-          <div key={review._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-            <div className="flex items-start gap-4">
-              <div className="h-14 w-14 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
-                <Star className="h-6 w-6 text-amber-400 fill-amber-400" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 text-sm truncate">{review.title || 'Review'}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {new Date(review.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </p>
-
-                {!isEditing ? (
-                  <ReviewCard review={review} onEdit={() => {
-                    setEditingId(review._id);
-                    setForm({ star: review.star, title: review.title || '', description: review.description || '' });
-                  }} />
-                ) : (
-                  <div className="mt-3 space-y-3">
-                    <StarSelector value={form.star} onChange={(v) => setForm(f => ({ ...f, star: v }))} />
-                    <input
-                      value={form.title}
-                      onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-                      placeholder="Review title"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none"
-                    />
-                    <textarea
-                      value={form.description}
-                      onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                      placeholder="Share your experience (min 20 characters)..."
-                      rows={3}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none resize-none"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => updateMutation.mutate({ id: review._id, payload: form })}
-                        disabled={isSubmitting || form.description.length < 20}
-                        className="flex items-center gap-2 px-4 py-2 bg-[#1a8a4a] text-white text-sm font-semibold rounded-lg hover:bg-[#157a3f] disabled:opacity-60 transition-colors"
-                      >
-                        {isSubmitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-                        Update Review
-                      </button>
-                      <button onClick={() => setEditingId(null)} className="px-4 py-2 border border-gray-200 text-gray-600 text-sm font-semibold rounded-lg hover:bg-gray-50">
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+    <div className="space-y-5">
+      <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1 text-xs font-black uppercase tracking-wider text-amber-700">
+              <Star className="h-4 w-4 fill-current" />
+              Product feedback
             </div>
+            <h2 className="text-2xl font-black tracking-tight text-gray-950">My reviews</h2>
+            <p className="mt-1 text-sm font-medium text-gray-500">Edit product reviews and help other shoppers decide.</p>
           </div>
-        );
-      })}
+          <div className="rounded-2xl bg-gray-50 px-4 py-3 text-right">
+            <p className="text-2xl font-black text-gray-950">{reviews.length}</p>
+            <p className="text-xs font-black uppercase tracking-wider text-gray-400">Reviews</p>
+          </div>
+        </div>
+      </section>
+
+      {isLoading ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-44 animate-pulse rounded-3xl border border-gray-100 bg-white" />
+          ))}
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-12 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-400">
+            <ShoppingBag className="h-8 w-8" />
+          </div>
+          <h3 className="mt-4 text-lg font-black text-gray-900">No reviews yet</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm font-medium text-gray-500">Purchase a product and share your experience after delivery.</p>
+          <Link to="/products" className="mt-5 inline-flex min-h-[44px] items-center rounded-xl bg-[#1a8a4a] px-5 text-sm font-black text-white hover:bg-[#157a3f]">
+            Shop products
+          </Link>
+        </div>
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {reviews.map((review: any) => {
+            const isEditing = editingId === review._id;
+            const isSubmitting = updateMutation.isPending;
+
+            return (
+              <article key={review._id} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-500">
+                    <MessageSquareText className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <RatingStars value={review.star} />
+                        <h3 className="mt-2 font-black text-gray-950">{review.title || 'Product review'}</h3>
+                        <p className="mt-1 text-xs font-semibold text-gray-400">
+                          {new Date(review.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      {!isEditing && (
+                        <button
+                          onClick={() => {
+                            setEditingId(review._id);
+                            setForm({ star: review.star, title: review.title || '', description: review.description || '' });
+                          }}
+                          className="inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-gray-200 px-3 text-xs font-black text-gray-700 hover:border-[#1a8a4a]/30 hover:text-[#1a8a4a]"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {!isEditing ? (
+                      <p className="mt-4 text-sm font-medium leading-6 text-gray-600">{review.description || 'No review details provided.'}</p>
+                    ) : (
+                      <div className="mt-4 space-y-3">
+                        <StarSelector value={form.star} onChange={(value) => setForm((current) => ({ ...current, star: value }))} />
+                        <input
+                          value={form.title}
+                          onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                          placeholder="Review title"
+                          className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm font-medium outline-none focus:border-[#1a8a4a] focus:ring-2 focus:ring-[#1a8a4a]/15"
+                        />
+                        <textarea
+                          value={form.description}
+                          onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                          placeholder="Share your experience"
+                          rows={4}
+                          className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium outline-none focus:border-[#1a8a4a] focus:ring-2 focus:ring-[#1a8a4a]/15"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => updateMutation.mutate({ id: review._id, payload: form })}
+                            disabled={isSubmitting || form.description.length < 20}
+                            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#1a8a4a] px-4 text-sm font-black text-white hover:bg-[#157a3f] disabled:opacity-60"
+                          >
+                            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                            Update review
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="min-h-[42px] rounded-xl border border-gray-200 px-4 text-sm font-black text-gray-600 hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

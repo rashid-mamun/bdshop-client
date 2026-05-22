@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Plus, Pencil, Trash2,
-  X, Check, Search, TrendingUp, DollarSign, UserCheck, Shield, ChevronRight
+  X, Check, Search, TrendingUp, DollarSign, UserCheck, Shield
 } from 'lucide-react';
 
 type Tab = 'overview' | 'products' | 'orders' | 'customers';
@@ -89,10 +89,6 @@ export default function AdminDashboard() {
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [orderSearch, setOrderSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
-
-  if (user?.role !== 'admin' && user?.role !== 'superadmin') {
-    return <Navigate to="/dashboard" />;
-  }
 
   // Queries
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
@@ -187,11 +183,15 @@ export default function AdminDashboard() {
     { key: 'customers', label: 'Customers', icon: Users },
   ];
 
+  if (user?.role !== 'admin' && user?.role !== 'superadmin') {
+    return <Navigate to="/dashboard" />;
+  }
+
   return (
     <div className="bg-[#f8f9fa] min-h-screen pb-20 md:pb-6">
       {/* Header banner */}
       <div className="bg-gradient-to-br from-[#0f2617] to-[#1a3d26] py-10 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="bd-container flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="h-16 w-16 rounded-2xl bg-amber-400 flex items-center justify-center text-[#1a1a1a] shadow-lg">
               <Shield className="h-8 w-8" />
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 -mt-1">
+      <div className="bd-container -mt-1">
         {/* Tab nav */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8 flex overflow-x-auto scrollbar-hide">
           {TABS.map(({ key, label, icon: Icon }) => (
