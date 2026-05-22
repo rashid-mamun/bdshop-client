@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import apiClient from '../../services/apiClient';
 import { Textarea } from '../../components/ui/textarea';
 import { Skeleton } from '../../components/ui/skeleton';
 import { useCartStore } from '../../store/useCartStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
+import { useRecentlyViewedStore } from '../../store/useRecentlyViewedStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
 import { ProductCard } from '../../components/ProductCard';
 import {
   Heart, ShoppingCart, Star, ChevronLeft, ChevronRight,
   Truck, RotateCcw, ShieldCheck, Share2, Minus, Plus,
-  ChevronRight as ChevRight, CheckCircle2, Zap
+  ChevronRight as ChevRight, CheckCircle2, Zap, Ruler, Mail, X, Package
 } from 'lucide-react';
 
 type Tab = 'description' | 'specs' | 'reviews';
@@ -22,6 +24,7 @@ export default function ProductDetailsPage() {
   const navigate = useNavigate();
   const { addItem } = useCartStore();
   const { toggleItem, isInWishlist } = useWishlistStore();
+  const { addItem: addRecentlyViewed } = useRecentlyViewedStore();
   const { user } = useAuthStore();
   const { success, error: toastError } = useToast();
   const queryClient = useQueryClient();
@@ -30,6 +33,10 @@ export default function ProductDetailsPage() {
   const [qty, setQty] = useState(1);
   const [activeTab, setActiveTab] = useState<Tab>('description');
   const [reviewForm, setReviewForm] = useState({ title: '', description: '', star: 5 });
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [notifyEmail, setNotifyEmail] = useState('');
+  const [selectedSize, setSelectedSize] = useState('M');
+  const [selectedColor, setSelectedColor] = useState('Black');
 
   // Reset image and qty when id changes
   useEffect(() => {
@@ -81,15 +88,48 @@ export default function ProductDetailsPage() {
     onError: (err: any) => toastError(err.response?.data?.message || 'Could not submit review.'),
   });
 
+  const notifyMutation = useMutation({
+    mutationFn: async (email: string) =>
+      apiClient.post(`/services/${id}/notify`, { email }),
+    onSuccess: () => {
+      success('Back-in-stock alert saved!');
+      setNotifyEmail('');
+    },
+    onError: (err: any) => toastError(err.response?.data?.message || 'Could not save alert.'),
+  });
+
   const wishlisted = isInWishlist(id!);
   const images = product?.images?.length > 0 ? product.images : (product?.img ? [product.img] : []);
   const avgRating = product?.averageRating || 0;
   const reviewCount = product?.reviewCount || 0;
+  const inStock = (product?.stock ?? 10) > 0;
+  const lowStock = inStock && (product?.stock ?? 10) <= 5;
+
+  useEffect(() => {
+    if (!product?._id) return;
+    addRecentlyViewed({
+      _id: product._id,
+      name: product.name,
+      model: product.model,
+      price: product.price,
+      img: product.img,
+      category: product.category,
+      originalPrice: product.originalPrice,
+      averageRating: product.averageRating,
+      reviewCount: product.reviewCount,
+      stock: product.stock,
+    });
+  }, [addRecentlyViewed, product]);
+
+  const addCurrentToCart = () => {
+    addItem({ _id: product._id, name: `${product.name} (${selectedSize}, ${selectedColor})`, model: product.model, price: product.price, img: product.img, quantity: qty });
+    success(`${product.model} added to cart!`);
+  };
 
   /* ─── Loading skeleton ─── */
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12 bg-[#f8f9fa] min-h-screen">
+      <div className="bd-container py-8 md:py-12 bg-[#f8f9fa] min-h-screen">
         <div className="grid md:grid-cols-2 gap-10">
           <div className="space-y-4">
             <Skeleton className="aspect-square rounded-2xl w-full" />
@@ -117,7 +157,9 @@ export default function ProductDetailsPage() {
   if (!product) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center bg-[#f8f9fa] px-4">
-        <div className="h-24 w-24 bg-gray-100 rounded-full flex items-center justify-center mb-6 text-5xl">📦</div>
+        <div className="h-24 w-24 bg-gray-100 rounded-full flex items-center justify-center mb-6 text-[#1a8a4a]">
+          <Package className="h-10 w-10" />
+        </div>
         <h2 className="text-3xl font-black text-[#1a1a1a]">Product Not Found</h2>
         <p className="text-gray-500 mt-2 mb-8 max-w-sm text-lg">This product may have been removed or doesn't exist.</p>
         <Link to="/products" className="bg-[#1a8a4a] text-white font-bold px-8 py-3.5 rounded-xl hover:bg-[#157a3f] transition-colors shadow-md hover:shadow-lg hover:-translate-y-0.5">
@@ -144,7 +186,7 @@ export default function ProductDetailsPage() {
     <div className="bg-[#f8f9fa] min-h-screen pb-16 md:pb-0">
       {/* ── Breadcrumb ── */}
       <div className="bg-white border-b border-gray-100 sticky top-16 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex items-center gap-2 text-sm text-gray-500 overflow-x-auto whitespace-nowrap scrollbar-hide">
+        <div className="bd-container py-3.5 flex items-center gap-2 text-sm text-gray-500 overflow-x-auto whitespace-nowrap scrollbar-hide">
           <Link to="/" className="hover:text-[#1a8a4a] transition-colors font-medium">Home</Link>
           <ChevRight className="h-4 w-4 text-gray-300 shrink-0" />
           <Link to="/products" className="hover:text-[#1a8a4a] transition-colors font-medium">Products</Link>
@@ -159,17 +201,23 @@ export default function ProductDetailsPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="bd-container py-8">
         {/* ── Main Product Grid ── */}
         <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
 
           {/* Left: Image Gallery */}
           <div className="space-y-4">
             <div className="relative bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden aspect-square group p-4 sm:p-8 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#eefaf3] via-white to-[#f3f7ff] text-[#1a8a4a]">
+                <Package className="h-16 w-16 opacity-60" />
+              </div>
               <img
                 src={images[currentImg] || 'https://via.placeholder.com/800'}
                 alt={product.model}
-                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
+                className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 mix-blend-multiply"
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none';
+                }}
               />
               
               {/* Image Navigation Arrows */}
@@ -232,7 +280,15 @@ export default function ProductDetailsPage() {
                     onClick={() => setCurrentImg(i)}
                     className={`w-20 h-20 shrink-0 rounded-2xl overflow-hidden border-2 bg-white flex items-center justify-center p-2 transition-all snap-center ${currentImg === i ? 'border-[#1a8a4a] shadow-md ring-2 ring-[#1a8a4a]/20' : 'border-transparent hover:border-gray-200 shadow-sm opacity-70 hover:opacity-100'}`}
                   >
-                    <img src={img} alt="" className="max-w-full max-h-full object-contain mix-blend-multiply" />
+                    <img
+                      src={img}
+                      alt=""
+                      className="max-w-full max-h-full object-contain mix-blend-multiply"
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.style.display = 'none';
+                      }}
+                    />
                   </button>
                 ))}
               </div>
@@ -249,7 +305,7 @@ export default function ProductDetailsPage() {
                 </span>
               )}
               <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-              {(product.stock ?? 10) > 0 ? (
+              {inStock ? (
                 <span className="text-sm font-bold text-green-600 flex items-center gap-1.5">
                   <CheckCircle2 className="h-4 w-4" /> In Stock ({product.stock})
                 </span>
@@ -299,6 +355,56 @@ export default function ProductDetailsPage() {
               </div>
             )}
 
+            {lowStock && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">
+                Only {product.stock} left. Order now before this batch sells out.
+              </div>
+            )}
+
+            <button
+              onClick={() => setSizeGuideOpen(true)}
+              className="inline-flex items-center gap-2 text-sm font-bold text-[#1a8a4a] hover:text-[#157a3f]"
+            >
+              <Ruler className="h-4 w-4" /> Product buying guide
+            </button>
+
+            {/* Variant Selectors (Portfolio Demo) */}
+            <div className="space-y-4 py-4 border-t border-gray-100">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-[#1a1a1a]">Color: <span className="text-gray-500 font-medium ml-1">{selectedColor}</span></span>
+                </div>
+                <div className="flex gap-3">
+                  {['Black', 'White', 'Blue'].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`relative h-10 w-10 rounded-full flex items-center justify-center border-2 transition-all ${selectedColor === color ? 'border-[#1a8a4a] ring-2 ring-[#1a8a4a]/20 scale-110' : 'border-gray-200 hover:border-gray-300'}`}
+                    >
+                      <span className={`h-8 w-8 rounded-full ${color === 'Black' ? 'bg-gray-900' : color === 'White' ? 'bg-white border border-gray-200' : 'bg-blue-600'}`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-bold text-[#1a1a1a]">Size: <span className="text-gray-500 font-medium ml-1">{selectedSize}</span></span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {['S', 'M', 'L', 'XL'].map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={`h-10 px-4 rounded-xl text-sm font-bold border transition-all ${selectedSize === size ? 'border-[#1a8a4a] bg-[#1a8a4a] text-white shadow-md' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Add to cart section */}
             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm space-y-5">
               <div className="flex items-center justify-between">
@@ -322,27 +428,50 @@ export default function ProductDetailsPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  disabled={(product.stock || 0) <= 0}
-                  onClick={() => {
-                    addItem({ _id: product._id, name: product.name, model: product.model, price: product.price, img: product.img, quantity: qty });
-                    success(`${product.model} added to cart!`);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-2 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold py-4 rounded-xl transition-all duration-200 hover:shadow-lg shadow-green-900/20 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  disabled={!inStock}
+                  onClick={addCurrentToCart}
+                  className="flex-1 flex items-center justify-center gap-2 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold py-4 rounded-xl transition-all duration-200 hover:shadow-lg shadow-green-900/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none"
                 >
                   <ShoppingCart className="h-5 w-5" /> Add to Cart
-                </button>
-                <button
-                  disabled={(product.stock || 0) <= 0}
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  disabled={!inStock}
                   onClick={() => {
-                    addItem({ _id: product._id, name: product.name, model: product.model, price: product.price, img: product.img, quantity: qty });
+                    addItem({ _id: product._id, name: `${product.name} (${selectedSize}, ${selectedColor})`, model: product.model, price: product.price, img: product.img, quantity: qty });
                     navigate('/checkout');
                   }}
                   className="flex-1 flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-black text-white font-bold py-4 rounded-xl transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                 >
                   Buy Now
-                </button>
+                </motion.button>
               </div>
+              {!inStock && (
+                <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+                  <p className="text-sm font-bold text-blue-900">Get notified when it is back</p>
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="email"
+                      value={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.value)}
+                      placeholder="Email address"
+                      className="min-w-0 flex-1 rounded-xl border border-blue-100 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                    />
+                    <button
+                      disabled={notifyMutation.isPending}
+                      onClick={() => {
+                        if (!notifyEmail.trim()) return;
+                        notifyMutation.mutate(notifyEmail);
+                      }}
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {notifyMutation.isPending ? '...' : <Mail className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Trust strips */}
@@ -434,6 +563,7 @@ export default function ProductDetailsPage() {
                             src={review.img || `https://ui-avatars.com/api/?name=${encodeURIComponent(review.name)}&background=e8f5ee&color=1a8a4a`}
                             alt={review.name}
                             className="w-12 h-12 rounded-full object-cover ring-2 ring-gray-50"
+                            loading="lazy"
                           />
                           <div className="flex-1">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
@@ -557,6 +687,59 @@ export default function ProductDetailsPage() {
           </div>
         )}
       </div>
+
+      {sizeGuideOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-black text-gray-900">Buying Guide</h3>
+                <p className="mt-1 text-sm text-gray-500">Quick checks before you buy this product.</p>
+              </div>
+              <button onClick={() => setSizeGuideOpen(false)} className="rounded-xl bg-gray-100 p-2 text-gray-500 hover:text-gray-900" aria-label="Close buying guide">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mt-5 grid gap-3 text-sm">
+              {[
+                ['Compatibility', 'Check model, configuration, voltage, and accessory support.'],
+                ['Warranty', 'Keep invoice and packaging until warranty period starts.'],
+                ['Delivery', 'Inspect product condition before accepting delivery.'],
+                ['Returns', 'Return window applies only when product is unused and complete.'],
+              ].map(([title, text]) => (
+                <div key={title} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <p className="font-black text-gray-900">{title}</p>
+                  <p className="mt-1 text-gray-600">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inStock && (
+        <div className="fixed inset-x-0 bottom-16 z-40 border-t border-gray-200 bg-white p-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] md:hidden">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-bold text-gray-500">{product.model}</p>
+              <p className="text-lg font-black text-[#1a8a4a]">৳{product.price?.toLocaleString()}</p>
+            </div>
+            <motion.button whileTap={{ scale: 0.95 }} onClick={addCurrentToCart} className="rounded-xl bg-[#1a8a4a] px-5 py-3 text-sm font-black text-white">
+              Add to Cart
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                addCurrentToCart();
+                navigate('/checkout');
+              }}
+              className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-black text-white"
+            >
+              Buy
+            </motion.button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
