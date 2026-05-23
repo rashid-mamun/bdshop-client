@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { normalizeAuthUser } from '../utils/auth';
 
 export interface User {
   _id: string;
@@ -17,7 +18,7 @@ export interface User {
 interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
-  setUser: (user: User | null) => void;
+  setUser: (user: User | null | unknown) => void;
   logout: () => void;
 }
 
@@ -26,7 +27,10 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
+      setUser: (user) => {
+        const normalizedUser = normalizeAuthUser(user);
+        set({ user: normalizedUser, isAuthenticated: !!normalizedUser });
+      },
       logout: () => {
         set({ user: null, isAuthenticated: false });
         // Fire-and-forget server logout to clear cookies
@@ -36,6 +40,17 @@ export const useAuthStore = create<AuthStore>()(
         }).catch(() => {});
       },
     }),
-    { name: 'bdshop-auth' }
+    {
+      name: 'bdshop-auth',
+      version: 1,
+      migrate: (persistedState: any) => {
+        const normalizedUser = normalizeAuthUser(persistedState?.user);
+        return {
+          ...persistedState,
+          user: normalizedUser,
+          isAuthenticated: !!normalizedUser,
+        };
+      },
+    }
   )
 );

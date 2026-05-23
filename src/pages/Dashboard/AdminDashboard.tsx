@@ -1,20 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../services/apiClient';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../hooks/useToast';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import {
   LayoutDashboard, Package, ShoppingBag, Users, Plus, Pencil, Trash2,
-  X, Check, Search, TrendingUp, DollarSign, UserCheck, Shield
+  X, Check, Search, TrendingUp, DollarSign, UserCheck, Shield, Link, Upload
 } from 'lucide-react';
 
 type Tab = 'overview' | 'products' | 'orders' | 'customers';
 
 const ORDER_STATUS_OPTIONS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+const PAYMENT_STATUS_OPTIONS = ['pending', 'paid', 'failed', 'refunded'];
+const ADMIN_TABS: Tab[] = ['overview', 'products', 'orders', 'customers'];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   pending:    { label: 'Pending',    color: 'text-amber-700',  bg: 'bg-amber-50 border-amber-200' },
@@ -23,6 +25,20 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
   shipped:    { label: 'Shipped',    color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200' },
   delivered:  { label: 'Delivered',  color: 'text-green-700',  bg: 'bg-green-50 border-green-200' },
   cancelled:  { label: 'Cancelled',  color: 'text-red-700',    bg: 'bg-red-50 border-red-200' },
+};
+
+const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  paid:     { label: 'Paid',     color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
+  pending:  { label: 'Pending',  color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+  failed:   { label: 'Failed',   color: 'text-red-700',   bg: 'bg-red-50 border-red-200' },
+  refunded: { label: 'Refunded', color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-200' },
+};
+
+const formatCurrency = (value: number) => `৳${value.toLocaleString()}`;
+const formatCompactCurrency = (value: number) => {
+  if (value >= 1000000) return `৳${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `৳${Math.round(value / 1000)}k`;
+  return `৳${value}`;
 };
 
 function ProductForm({ initial, onSave, onCancel, isPending }: {
@@ -40,10 +56,63 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
     config: initial?.config || '',
     madeIn: initial?.madeIn || '',
     img: initial?.img || '',
+    imgPublicId: initial?.imgPublicId || '',
+    imgStorage: initial?.imgStorage || '',
   });
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState('');
+  const [imageUploadInfo, setImageUploadInfo] = useState('');
 
-  const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: string, v: string) =>
+    setForm((f) => (
+      k === 'img'
+        ? { ...f, img: v, imgPublicId: '', imgStorage: v ? 'external' : '' }
+        : { ...f, [k]: v }
+    ));
   const inputCls = "w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30 focus:border-[#1a8a4a] transition-all";
+  const handleImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setImageUploadError('');
+    setImageUploadInfo('');
+
+    try {
+      const uploadData = new FormData();
+      uploadData.append('image', file);
+      const res = await apiClient.post('/upload', uploadData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const imageUrl = res.data?.data?.url;
+      if (!imageUrl) throw new Error('Upload completed without an image URL');
+      const storage = res.data?.data?.storage;
+      setForm((f) => ({
+        ...f,
+        img: imageUrl,
+        imgPublicId: res.data?.data?.public_id || '',
+        imgStorage: storage || '',
+      }));
+      setImageUploadInfo(storage === 'local' ? 'Uploaded locally and URL filled.' : 'Uploaded to Cloudinary and URL filled.');
+    } catch (error: any) {
+      setImageUploadError(error.response?.data?.error || error.message || 'Image upload failed');
+    } finally {
+      setIsUploadingImage(false);
+      event.target.value = '';
+    }
+  };
+
+  const saveForm = () => {
+    const primaryImage = form.img.trim();
+    onSave({
+      ...form,
+      img: primaryImage,
+      images: primaryImage ? [primaryImage] : [],
+      imgPublicId: form.imgPublicId,
+      imgStorage: form.imgStorage,
+      price: Number(form.price),
+    });
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 bg-gray-50 border border-gray-100 rounded-2xl my-2">
@@ -60,6 +129,34 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
           <input value={(form as any)[k]} onChange={(e) => set(k, e.target.value)} className={inputCls} />
         </div>
       ))}
+      <div className="md:col-span-2 grid gap-4 rounded-2xl border border-gray-100 bg-white p-4 sm:grid-cols-[120px_minmax(0,1fr)]">
+        <div className="flex h-28 w-full items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+          {form.img ? (
+            <img src={form.img} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Package className="h-8 w-8 text-gray-300" />
+          )}
+        </div>
+        <div className="min-w-0">
+          <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Image Preview</label>
+          <p className="mb-3 text-xs font-semibold text-gray-500">Paste a direct image URL, or upload a JPG, PNG, WebP, or GIF to fill the URL automatically. Saving updates the product gallery.</p>
+          <div className="flex flex-wrap gap-2">
+            <label className="inline-flex min-h-[38px] cursor-pointer items-center gap-2 rounded-xl border border-[#1a8a4a]/30 px-4 text-xs font-black text-[#1a8a4a] transition-colors hover:bg-[#e8f5ee]">
+              <Upload className="h-4 w-4" />
+              {isUploadingImage ? 'Uploading...' : 'Upload Image'}
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleImageUpload} disabled={isUploadingImage} className="hidden" />
+            </label>
+            {form.img && (
+              <a href={form.img} target="_blank" rel="noreferrer" className="inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-[#1a8a4a]/30 px-4 text-xs font-black text-[#1a8a4a] transition-colors hover:bg-[#e8f5ee]">
+              <Link className="h-4 w-4" />
+              Open Image URL
+              </a>
+            )}
+          </div>
+          {imageUploadInfo && <p className="mt-2 text-xs font-semibold text-green-700">{imageUploadInfo}</p>}
+          {imageUploadError && <p className="mt-2 text-xs font-semibold text-red-600">{imageUploadError}</p>}
+        </div>
+      </div>
       <div>
         <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Price (৳)</label>
         <input type="number" value={form.price} onChange={(e) => set('price', e.target.value)} className={inputCls} min="0" />
@@ -72,7 +169,7 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
         <button onClick={onCancel} className="px-5 py-2.5 rounded-xl font-semibold text-gray-500 hover:bg-gray-200 transition-colors flex items-center gap-2">
           <X className="h-4 w-4" /> Cancel
         </button>
-        <button onClick={() => onSave({ ...form, price: Number(form.price) })} disabled={isPending} className="px-5 py-2.5 rounded-xl font-semibold text-white bg-[#1a8a4a] hover:bg-[#157a3f] transition-colors flex items-center gap-2 disabled:opacity-50">
+        <button onClick={saveForm} disabled={isPending || isUploadingImage} className="px-5 py-2.5 rounded-xl font-semibold text-white bg-[#1a8a4a] hover:bg-[#157a3f] transition-colors flex items-center gap-2 disabled:opacity-50">
           <Check className="h-4 w-4" /> {isPending ? 'Saving...' : initial ? 'Update Product' : 'Create Product'}
         </button>
       </div>
@@ -82,13 +179,34 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
 
 export default function AdminDashboard() {
   const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { success, error: toastError } = useToast();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const initialTab = searchParams.get('tab') as Tab | null;
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab && ADMIN_TABS.includes(initialTab) ? initialTab : 'overview');
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [orderSearch, setOrderSearch] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') as Tab | null;
+    if (tab && ADMIN_TABS.includes(tab) && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+    if (!tab && activeTab !== 'overview') {
+      setActiveTab('overview');
+    }
+  }, [activeTab, searchParams]);
+
+  const selectTab = (tab: Tab) => {
+    setActiveTab(tab);
+    if (tab === 'overview') {
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    setSearchParams({ tab }, { replace: true });
+  };
 
   // Queries
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
@@ -135,9 +253,9 @@ export default function AdminDashboard() {
   });
 
   const updateOrderMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) => apiClient.put(`/orders/${id}`, { status }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-orders'] }); success('Order status updated!'); },
-    onError: () => toastError('Status update failed'),
+    mutationFn: ({ id, status, paymentStatus }: { id: string; status?: string; paymentStatus?: string }) => apiClient.put(`/orders/${id}`, { status, paymentStatus }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-orders'] }); success('Order updated!'); },
+    onError: (e: any) => toastError(e.response?.data?.error || 'Order update failed'),
   });
 
   const makeAdminMutation = useMutation({
@@ -149,6 +267,7 @@ export default function AdminDashboard() {
   const deactivateUserMutation = useMutation({
     mutationFn: (email: string) => apiClient.put(`/users/${email}/deactivate`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); success('User deactivated'); },
+    onError: (e: any) => toastError(e.response?.data?.error || 'User deactivation failed'),
   });
 
   // Analytics
@@ -157,12 +276,32 @@ export default function AdminDashboard() {
   const totalProducts = productsData?.length || 0;
   const totalCustomers = usersData?.length || 0;
 
-  const monthlyRevenue: Record<string, number> = {};
-  ordersData?.filter((o: any) => o.paymentStatus === 'paid').forEach((o: any) => {
-    const month = new Date(o.createdAt).toLocaleString('default', { month: 'short' });
-    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (o.total || 0);
+  const monthBuckets = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date();
+    date.setDate(1);
+    date.setMonth(date.getMonth() - (5 - index));
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    return {
+      key,
+      name: date.toLocaleString('default', { month: 'short' }),
+      revenue: 0,
+      orders: 0,
+    };
   });
-  const chartData = Object.entries(monthlyRevenue).map(([name, sales]) => ({ name, sales }));
+  const monthlyRevenue = new Map(monthBuckets.map((bucket) => [bucket.key, { ...bucket }]));
+  ordersData?.filter((o: any) => o.paymentStatus === 'paid').forEach((o: any) => {
+    const date = new Date(o.createdAt);
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    const bucket = monthlyRevenue.get(key);
+    if (!bucket) return;
+    bucket.revenue += o.total || 0;
+    bucket.orders += 1;
+  });
+  const chartData = Array.from(monthlyRevenue.values());
+  const chartHasRevenue = chartData.some((item) => item.revenue > 0);
+  const bestRevenueMonth = chartData.reduce((best, item) => (item.revenue > best.revenue ? item : best), chartData[0]);
+  const latestRevenue = chartData[chartData.length - 1]?.revenue || 0;
+  const paidOrdersCount = chartData.reduce((sum, item) => sum + item.orders, 0);
 
   const filteredOrders = ordersData?.filter((o: any) => {
     if (!orderSearch) return true;
@@ -184,98 +323,130 @@ export default function AdminDashboard() {
   ];
 
   if (user?.role !== 'admin' && user?.role !== 'superadmin') {
-    return <Navigate to="/dashboard" />;
+    return <Navigate to="/my-account" replace />;
   }
 
   return (
-    <div className="bg-[#f8f9fa] min-h-screen pb-20 md:pb-6">
+    <div className="bg-[#f4f7f5] min-h-screen pb-20 md:pb-8">
       {/* Header banner */}
-      <div className="bg-gradient-to-br from-[#0f2617] to-[#1a3d26] py-10 px-6">
-        <div className="bd-container flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="h-16 w-16 rounded-2xl bg-amber-400 flex items-center justify-center text-[#1a1a1a] shadow-lg">
-              <Shield className="h-8 w-8" />
+      <div className="bg-gradient-to-br from-[#0f2617] to-[#1a3d26] px-4 py-8 sm:px-5 lg:py-10">
+        <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 sm:px-1 md:flex-row md:items-center md:justify-between xl:max-w-[1240px] 2xl:max-w-[1320px]">
+          <div className="flex items-center gap-4 sm:gap-5">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-[#1a1a1a] shadow-lg sm:h-16 sm:w-16">
+              <Shield className="h-7 w-7 sm:h-8 sm:w-8" />
             </div>
             <div className="text-white">
-              <h1 className="text-2xl font-black">Admin Portal</h1>
-              <p className="text-white/60 text-sm mt-0.5">Manage store, products, and users</p>
+              <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Admin Portal</h1>
+              <p className="mt-1 text-sm font-medium text-white/65">Manage store, products, orders and users</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 bg-white/10 backdrop-blur border border-white/20 rounded-2xl p-3">
-             <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold">
-               {user?.displayName?.charAt(0).toUpperCase()}
+          <div className="flex w-full items-center gap-3 rounded-2xl border border-white/20 bg-white/10 p-3 backdrop-blur md:w-auto">
+             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 font-bold text-white">
+               {user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
              </div>
-             <div className="mr-2">
-               <p className="text-sm font-bold text-white leading-tight">{user?.displayName}</p>
-               <p className="text-xs text-amber-400 font-semibold">{user?.role?.toUpperCase()}</p>
+             <div className="min-w-0 pr-2">
+               <p className="truncate text-sm font-bold leading-tight text-white">{user?.displayName}</p>
+               <p className="text-xs font-black uppercase tracking-wide text-amber-400">{user?.role}</p>
              </div>
           </div>
         </div>
       </div>
 
-      <div className="bd-container -mt-1">
+      <div className="mx-auto -mt-1 w-full max-w-[1180px] px-4 sm:px-5 lg:px-6 xl:max-w-[1240px] 2xl:max-w-[1320px]">
         {/* Tab nav */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm mb-8 flex overflow-x-auto scrollbar-hide">
+        <div className="mb-6 overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm scrollbar-hide md:mb-8">
+          <div className="grid min-w-[560px] grid-cols-4">
           {TABS.map(({ key, label, icon: Icon }) => (
             <button
               key={key}
-              onClick={() => setActiveTab(key as Tab)}
-              className={`flex-1 flex items-center justify-center gap-2 py-4 px-4 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
+              onClick={() => selectTab(key as Tab)}
+              className={`flex min-h-[52px] items-center justify-center gap-2 border-b-2 px-4 py-3 text-sm font-bold transition-all whitespace-nowrap ${
                 activeTab === key
-                  ? 'border-[#1a8a4a] text-[#1a8a4a]'
-                  : 'border-transparent text-gray-500 hover:text-[#1a1a1a]'
+                  ? 'border-[#1a8a4a] bg-[#f8fbf9] text-[#1a8a4a]'
+                  : 'border-transparent text-gray-500 hover:bg-gray-50 hover:text-[#1a1a1a]'
               }`}
             >
               <Icon className="h-4 w-4" /> {label}
             </button>
           ))}
+          </div>
         </div>
 
         {/* ── OVERVIEW ── */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 { label: 'Total Revenue', value: `৳${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'text-green-600 bg-green-50 border-green-100' },
                 { label: 'Total Orders', value: totalOrders, icon: ShoppingBag, color: 'text-blue-600 bg-blue-50 border-blue-100' },
                 { label: 'Total Products', value: totalProducts, icon: Package, color: 'text-purple-600 bg-purple-50 border-purple-100' },
                 { label: 'Customers', value: totalCustomers, icon: UserCheck, color: 'text-orange-600 bg-orange-50 border-orange-100' },
               ].map(({ label, value, icon: Icon, color }) => (
-                <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-4">
-                  <div className={`h-14 w-14 rounded-2xl flex items-center justify-center border ${color}`}>
-                    <Icon className="h-6 w-6" />
+                <div key={label} className="flex min-h-[112px] items-center gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border sm:h-14 sm:w-14 ${color}`}>
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">{label}</p>
-                    <p className="text-2xl font-black text-[#1a1a1a] mt-0.5">{value}</p>
+                    <p className="mt-1 truncate text-2xl font-black text-[#1a1a1a]">{value}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="grid lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h3 className="font-bold text-[#1a1a1a] mb-6 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-[#1a8a4a]" /> Monthly Revenue
-                </h3>
-                {chartData.length > 0 ? (
-                  <div className="h-[300px]">
+            <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+                <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-black text-[#1a8a4a]">
+                      <TrendingUp className="h-4 w-4" /> Revenue trend
+                    </p>
+                    <h3 className="mt-1 text-xl font-black tracking-tight text-gray-950">Last 6 months performance</h3>
+                    <p className="mt-1 text-sm font-semibold text-gray-500">Paid order revenue by month</p>
+                  </div>
+                  <div className="rounded-2xl border border-green-100 bg-green-50 px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-wide text-green-700">This month</p>
+                    <p className="mt-1 text-lg font-black text-gray-950">{formatCurrency(latestRevenue)}</p>
+                  </div>
+                </div>
+                {chartHasRevenue ? (
+                  <div className="h-[280px] sm:h-[340px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                        <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} tick={{fill: '#6b7280'}} />
-                        <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `৳${v}`} tick={{fill: '#6b7280'}} />
-                        <Tooltip formatter={(v) => [`৳${Number(v).toLocaleString()}`, 'Revenue']} cursor={{ fill: '#f8f9fa' }} contentStyle={{ borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                        <Bar dataKey="sales" fill="#1a8a4a" radius={[6, 6, 0, 0]} />
-                      </BarChart>
+                      <AreaChart data={chartData} margin={{ top: 14, right: 18, left: 0, bottom: 8 }}>
+                        <defs>
+                          <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#1a8a4a" stopOpacity={0.28} />
+                            <stop offset="95%" stopColor="#1a8a4a" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 8" vertical={false} stroke="#e5e7eb" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 700 }} dy={10} />
+                        <YAxis axisLine={false} tickLine={false} width={54} tickFormatter={(v) => formatCompactCurrency(Number(v))} tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 700 }} />
+                        <Tooltip formatter={(v) => [formatCurrency(Number(v)), 'Revenue']} cursor={{ stroke: '#1a8a4a', strokeWidth: 1, strokeDasharray: '4 4' }} contentStyle={{ borderRadius: '16px', border: '1px solid #e5e7eb', boxShadow: '0 18px 40px rgba(15,23,42,0.12)', fontWeight: 800 }} />
+                        <Area type="monotone" dataKey="revenue" stroke="#1a8a4a" strokeWidth={4} fill="url(#revenueFill)" dot={{ r: 4, strokeWidth: 3, fill: '#ffffff', stroke: '#1a8a4a' }} activeDot={{ r: 7, strokeWidth: 4, fill: '#1a8a4a', stroke: '#dcfce7' }} />
+                      </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 ) : (
-                  <div className="h-[300px] flex items-center justify-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">No revenue data yet</div>
+                  <div className="flex h-[260px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50 text-sm font-semibold text-gray-400 sm:h-[300px]">No paid revenue data yet</div>
                 )}
+                <div className="mt-4 grid gap-3 border-t border-gray-100 pt-4 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-gray-50 p-3">
+                    <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Paid orders</p>
+                    <p className="mt-1 text-xl font-black text-gray-950">{paidOrdersCount}</p>
+                  </div>
+                  <div className="rounded-2xl bg-gray-50 p-3">
+                    <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Peak revenue</p>
+                    <p className="mt-1 text-xl font-black text-gray-950">{formatCurrency(bestRevenueMonth?.revenue || 0)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-gray-50 p-3">
+                    <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Range</p>
+                    <p className="mt-1 text-xl font-black text-gray-950">6 months</p>
+                  </div>
+                </div>
               </div>
 
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
                 <h3 className="font-bold text-[#1a1a1a] mb-4">Recent Orders</h3>
                 <div className="space-y-4">
                   {ordersData?.slice(0, 6).map((order: any) => {
@@ -303,7 +474,7 @@ export default function AdminDashboard() {
 
         {/* ── PRODUCTS ── */}
         {activeTab === 'products' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
             <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h2 className="text-lg font-bold text-[#1a1a1a]">Products Inventory</h2>
               <button onClick={() => { setShowProductForm(true); setEditingProduct(null); }} className="bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold py-2.5 px-5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
@@ -311,7 +482,7 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <div className="p-5">
+            <div className="p-4 sm:p-5">
               {showProductForm && !editingProduct && (
                 <ProductForm
                   onSave={(data) => createProductMutation.mutate(data)}
@@ -323,8 +494,8 @@ export default function AdminDashboard() {
               {productsLoading ? (
                 <div className="space-y-3 mt-4">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 w-full bg-gray-50 rounded-xl animate-pulse" />)}</div>
               ) : (
-                <div className="overflow-x-auto mt-4 border border-gray-100 rounded-xl">
-                  <table className="w-full text-sm text-left">
+                <div className="mt-4 overflow-x-auto rounded-xl border border-gray-100">
+                  <table className="w-full min-w-[760px] text-left text-sm">
                     <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-100">
                       <tr>
                         <th className="px-5 py-4 rounded-tl-xl">Product</th>
@@ -388,68 +559,86 @@ export default function AdminDashboard() {
 
         {/* ── ORDERS ── */}
         {activeTab === 'orders' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="text-lg font-bold text-[#1a1a1a]">Order Management</h2>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-gray-100 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfd_100%)] p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-gray-950">Order Management</h2>
+                <p className="mt-1 text-sm font-semibold text-gray-500">{filteredOrders?.length || 0} orders ready for review</p>
+              </div>
+              <div className="relative w-full sm:w-80">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   placeholder="Search by email, ID..."
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30 focus:border-[#1a8a4a] transition-all bg-gray-50"
+                  className="min-h-[44px] w-full rounded-2xl border border-gray-200 bg-white pl-11 pr-4 text-sm font-semibold text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-[#1a8a4a]/30 hover:shadow-sm focus:border-[#1a8a4a]/60 focus:ring-4 focus:ring-[#1a8a4a]/10"
                 />
               </div>
             </div>
 
-            <div className="p-5">
+            <div className="p-4 sm:p-5">
               {ordersLoading ? (
                 <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 w-full bg-gray-50 rounded-xl animate-pulse" />)}</div>
               ) : (
-                <div className="overflow-x-auto border border-gray-100 rounded-xl">
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-100">
+                <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                  <table className="w-full min-w-[1120px] text-left text-sm">
+                    <thead className="border-b border-gray-100 bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-500">
                       <tr>
-                        <th className="px-5 py-4 rounded-tl-xl">Order ID</th>
+                        <th className="px-5 py-4 rounded-tl-2xl">Order ID</th>
                         <th className="px-5 py-4">Customer</th>
                         <th className="px-5 py-4">Date</th>
                         <th className="px-5 py-4">Total</th>
-                        <th className="px-5 py-4">Status</th>
-                        <th className="px-5 py-4 text-right rounded-tr-xl">Update Status</th>
+                        <th className="px-5 py-4">Product Status</th>
+                        <th className="px-5 py-4">Payment Status</th>
+                        <th className="px-5 py-4 text-right rounded-tr-2xl">Update</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {filteredOrders?.map((order: any) => {
                         const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+                        const paymentStatus = PAYMENT_STATUS_CONFIG[order.paymentStatus] || PAYMENT_STATUS_CONFIG.pending;
                         return (
                           <tr key={order._id} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-5 py-3 font-mono text-xs text-gray-500 uppercase">#{order._id.slice(-8)}</td>
-                            <td className="px-5 py-3">
+                            <td className="px-5 py-4 font-mono text-xs font-bold uppercase text-gray-500">#{order._id.slice(-8)}</td>
+                            <td className="px-5 py-4">
                               <p className="font-semibold text-[#1a1a1a]">{order.email}</p>
                               <p className="text-xs text-gray-500">{order.shippingAddress?.city || 'No address'}</p>
                             </td>
-                            <td className="px-5 py-3 text-gray-500">{new Date(order.createdAt).toLocaleDateString()}</td>
-                            <td className="px-5 py-3 font-bold text-[#1a1a1a]">৳{order.total?.toLocaleString()}</td>
-                            <td className="px-5 py-3">
-                              <div className="flex flex-col gap-1 items-start">
-                                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${status.bg} ${status.color}`}>
-                                  {status.label}
-                                </span>
-                                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${order.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                                  {order.paymentStatus?.toUpperCase()}
-                                </span>
-                              </div>
+                            <td className="px-5 py-4 font-semibold text-gray-600">{new Date(order.createdAt).toLocaleDateString()}</td>
+                            <td className="px-5 py-4 font-black text-[#1a1a1a]">৳{order.total?.toLocaleString()}</td>
+                            <td className="px-5 py-4">
+                              <span className={`inline-flex min-h-[28px] items-center rounded-full border px-3 text-xs font-black ${status.bg} ${status.color}`}>
+                                {status.label}
+                              </span>
                             </td>
-                            <td className="px-5 py-3 text-right">
-                              <select
-                                value={order.status}
-                                onChange={(e) => updateOrderMutation.mutate({ id: order._id, status: e.target.value })}
-                                className="border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-[#1a8a4a] bg-white font-medium text-gray-700"
-                              >
-                                {ORDER_STATUS_OPTIONS.map((s) => (
-                                  <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                                ))}
-                              </select>
+                            <td className="px-5 py-4">
+                              <span className={`inline-flex min-h-[28px] items-center rounded-full border px-3 text-xs font-black ${paymentStatus.bg} ${paymentStatus.color}`}>
+                                {paymentStatus.label}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <select
+                                  aria-label="Update order status"
+                                  value={order.status}
+                                  onChange={(e) => updateOrderMutation.mutate({ id: order._id, status: e.target.value })}
+                                  className="min-h-[38px] rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 outline-none transition-all hover:border-[#1a8a4a]/40 focus:border-[#1a8a4a] focus:ring-4 focus:ring-[#1a8a4a]/10"
+                                >
+                                  {ORDER_STATUS_OPTIONS.map((s) => (
+                                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                  ))}
+                                </select>
+                                <select
+                                  aria-label="Update payment status"
+                                  value={order.paymentStatus || 'pending'}
+                                  onChange={(e) => updateOrderMutation.mutate({ id: order._id, paymentStatus: e.target.value })}
+                                  className="min-h-[38px] rounded-xl border border-gray-200 bg-white px-3 text-xs font-bold text-gray-700 outline-none transition-all hover:border-[#1a8a4a]/40 focus:border-[#1a8a4a] focus:ring-4 focus:ring-[#1a8a4a]/10"
+                                >
+                                  {PAYMENT_STATUS_OPTIONS.map((s) => (
+                                    <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                                  ))}
+                                </select>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -467,40 +656,46 @@ export default function AdminDashboard() {
 
         {/* ── CUSTOMERS ── */}
         {activeTab === 'customers' && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="text-lg font-bold text-[#1a1a1a]">Customer Directory</h2>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex flex-col gap-4 border-b border-gray-100 bg-[linear-gradient(180deg,#ffffff_0%,#fbfcfd_100%)] p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-gray-950">Customer Directory</h2>
+                <p className="mt-1 text-sm font-semibold text-gray-500">{filteredCustomers?.length || 0} customers in this view</p>
+              </div>
+              <div className="relative w-full sm:w-80">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <input
                   placeholder="Search customers..."
                   value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30 focus:border-[#1a8a4a] transition-all bg-gray-50"
+                  className="min-h-[44px] w-full rounded-2xl border border-gray-200 bg-white pl-11 pr-4 text-sm font-semibold text-gray-900 outline-none transition-all placeholder:text-gray-400 hover:border-[#1a8a4a]/30 hover:shadow-sm focus:border-[#1a8a4a]/60 focus:ring-4 focus:ring-[#1a8a4a]/10"
                 />
               </div>
             </div>
 
-            <div className="p-5">
+            <div className="p-4 sm:p-5">
               {usersLoading ? (
                 <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-16 w-full bg-gray-50 rounded-xl animate-pulse" />)}</div>
               ) : (
-                <div className="overflow-x-auto border border-gray-100 rounded-xl">
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-100">
+                <div className="overflow-x-auto rounded-2xl border border-gray-100">
+                  <table className="w-full min-w-[980px] text-left text-sm">
+                    <thead className="border-b border-gray-100 bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-500">
                       <tr>
-                        <th className="px-5 py-4 rounded-tl-xl">Customer</th>
+                        <th className="px-5 py-4 rounded-tl-2xl">Customer</th>
                         <th className="px-5 py-4">Location</th>
-                        <th className="px-5 py-4">Role & Status</th>
-                        <th className="px-5 py-4 text-right rounded-tr-xl">Actions</th>
+                        <th className="px-5 py-4">Role</th>
+                        <th className="px-5 py-4">Account Status</th>
+                        <th className="px-5 py-4 text-right rounded-tr-2xl">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {filteredCustomers?.map((u: any) => (
+                      {filteredCustomers?.map((u: any) => {
+                        const isCurrentUser = user?.email?.toLowerCase() === u.email?.toLowerCase();
+                        return (
                         <tr key={u._id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-5 py-3">
+                          <td className="px-5 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-xl bg-[#e8f5ee] flex items-center justify-center text-[#1a8a4a] font-bold">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#e8f5ee] font-black text-[#1a8a4a]">
                                 {u.displayName?.charAt(0).toUpperCase()}
                               </div>
                               <div>
@@ -509,26 +704,40 @@ export default function AdminDashboard() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-3 text-gray-600">
+                          <td className="px-5 py-4 font-semibold text-gray-600">
                             {u.district || u.division ? `${u.district || ''}${u.district && u.division ? ', ' : ''}${u.division || ''}` : 'Not provided'}
                           </td>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${u.role === 'admin' || u.role === 'superadmin' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-600'}`}>
-                                {u.role?.toUpperCase() || 'USER'}
-                              </span>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {u.isActive ? 'ACTIVE' : 'INACTIVE'}
-                              </span>
-                            </div>
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex min-h-[28px] items-center rounded-full border px-3 text-xs font-black uppercase ${
+                              u.role === 'admin' || u.role === 'superadmin'
+                                ? 'border-purple-200 bg-purple-50 text-purple-700'
+                                : 'border-gray-200 bg-gray-50 text-gray-700'
+                            }`}>
+                              {u.role || 'user'}
+                            </span>
                           </td>
-                          <td className="px-5 py-3 text-right">
+                          <td className="px-5 py-4">
+                            <span className={`inline-flex min-h-[28px] items-center rounded-full border px-3 text-xs font-black ${
+                              u.isActive
+                                ? 'border-green-200 bg-green-50 text-green-700'
+                                : 'border-red-200 bg-red-50 text-red-700'
+                            }`}>
+                              {u.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
+                              {isCurrentUser ? (
+                                <span className="min-h-[34px] rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-black text-gray-500">
+                                  Current Admin
+                                </span>
+                              ) : (
+                                <>
                               {u.role !== 'admin' && u.role !== 'superadmin' && (
                                 <button
                                   onClick={() => makeAdminMutation.mutate(u.email)}
                                   disabled={makeAdminMutation.isPending}
-                                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-purple-200 text-purple-600 hover:bg-purple-50 transition-colors"
+                                  className="min-h-[34px] rounded-xl border border-purple-200 px-3 text-xs font-black text-purple-600 transition-colors hover:bg-purple-50 disabled:opacity-50"
                                 >
                                   Make Admin
                                 </button>
@@ -536,22 +745,25 @@ export default function AdminDashboard() {
                               {u.isActive ? (
                                 <button
                                   onClick={() => deactivateUserMutation.mutate(u.email)}
-                                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                                  className="min-h-[34px] rounded-xl border border-red-200 px-3 text-xs font-black text-red-600 transition-colors hover:bg-red-50"
                                 >
                                   Deactivate
                                 </button>
                               ) : (
                                 <button
                                   onClick={() => apiClient.put(`/users/${u.email}/reactivate`).then(() => queryClient.invalidateQueries({ queryKey: ['admin-users'] }))}
-                                  className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-green-200 text-green-600 hover:bg-green-50 transition-colors"
+                                  className="min-h-[34px] rounded-xl border border-green-200 px-3 text-xs font-black text-green-600 transition-colors hover:bg-green-50"
                                 >
                                   Reactivate
                                 </button>
                               )}
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                   {filteredCustomers?.length === 0 && (

@@ -10,6 +10,7 @@ import { Footer } from './components/layout/Footer';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { CompareBar } from './components/layout/CompareBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { isAdminUser } from './utils/auth';
 
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
@@ -44,15 +45,22 @@ const PageFallback = () => (
 /* ─── Guards ──────────────────────────────────── */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuthStore();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location }} />;
   return <>{children}</>;
 };
 
 const DashboardRouter = () => {
   const { user } = useAuthStore();
   const location = useLocation();
-  if (user?.role === 'admin' || user?.role === 'superadmin') return <AdminDashboard />;
+  if (isAdminUser(user)) return <AdminDashboard />;
   return <Navigate to={`/my-account${location.search}`} replace />;
+};
+
+const AccountRouter = () => {
+  const { user } = useAuthStore();
+  if (isAdminUser(user)) return <Navigate to="/dashboard" replace />;
+  return <UserDashboard />;
 };
 
 const ScrollToTop = () => {
@@ -146,7 +154,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'my-account',
-            element: <ProtectedRoute><UserDashboard /></ProtectedRoute>,
+            element: <ProtectedRoute><AccountRouter /></ProtectedRoute>,
           },
           { path: 'order-history', element: <OrderHistoryPage /> },
           { path: 'track-order', element: <TrackOrderPage /> },

@@ -8,6 +8,7 @@ import { useCartStore } from '../../store/useCartStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
 import apiClient from '../../services/apiClient';
 import type { Product } from '../../types/product';
+import { isAdminUser } from '../../utils/auth';
 
 const TRENDING_SEARCHES = ['Laptop', 'iPhone', 'Bike', 'Headphone'];
 
@@ -27,6 +28,8 @@ export function Navbar() {
 
   const cartCount = items.reduce((s, i) => s + i.quantity, 0);
   const wishCount = wishlistItems.length;
+  const adminUser = isAdminUser(user);
+  const userInitial = user?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U';
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -179,22 +182,32 @@ export function Navbar() {
             {/* Right Icons */}
             <div className="hidden md:flex items-center gap-1 sm:gap-2 shrink-0 ml-auto md:ml-0">
 
-              {/* Wishlist */}
-              <Link
-                to="/my-account?tab=wishlist"
-                className="relative hidden sm:flex flex-col items-center p-2 rounded-lg hover:bg-gray-50 transition-colors group"
-                title="Wishlist"
-              >
-                <div className="relative">
-                  <Heart className="h-6 w-6 text-gray-600 group-hover:text-red-500 transition-colors" />
-                  {wishCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 h-4.5 min-w-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
-                      {wishCount}
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-gray-500 hidden md:block mt-1 font-medium">Wishlist</span>
-              </Link>
+              {adminUser ? (
+                <Link
+                  to="/dashboard"
+                  className="relative hidden sm:flex flex-col items-center p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+                  title="Admin dashboard"
+                >
+                  <LayoutDashboard className="h-6 w-6 text-gray-600 group-hover:text-[#1a8a4a] transition-colors" />
+                  <span className="text-[10px] text-gray-500 hidden md:block mt-1 font-medium">Admin</span>
+                </Link>
+              ) : (
+                <Link
+                  to="/my-account?tab=wishlist"
+                  className="relative hidden sm:flex flex-col items-center p-2 rounded-lg hover:bg-gray-50 transition-colors group"
+                  title="Wishlist"
+                >
+                  <div className="relative">
+                    <Heart className="h-6 w-6 text-gray-600 group-hover:text-red-500 transition-colors" />
+                    {wishCount > 0 && (
+                      <span className="absolute -top-1.5 -right-2 h-4.5 min-w-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                        {wishCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-gray-500 hidden md:block mt-1 font-medium">Wishlist</span>
+                </Link>
+              )}
 
               {/* Cart */}
               <button
@@ -229,7 +242,7 @@ export function Navbar() {
                     className="flex items-center p-1 rounded-full hover:bg-gray-50 transition-colors group"
                   >
                     <div className="h-9 w-9 rounded-full bg-[#1a8a4a] flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                      {user.displayName?.charAt(0).toUpperCase()}
+                      {userInitial}
                     </div>
                   </button>
 
@@ -238,42 +251,81 @@ export function Navbar() {
                       <div className="bg-[linear-gradient(180deg,#f8fbf9_0%,#ffffff_100%)] p-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1a8a4a] text-lg font-black text-white shadow-sm">
-                            {user.displayName?.charAt(0).toUpperCase()}
+                            {userInitial}
                           </div>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-black text-gray-950">{user.displayName}</p>
                             <p className="mt-0.5 truncate text-xs font-semibold text-gray-500">{user.email}</p>
+                            {adminUser && (
+                              <span className="mt-2 inline-flex rounded-full bg-[#e8f5ee] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#1a8a4a]">
+                                {user.role}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
                       <div className="p-2">
-                      <Link
-                        to="/my-account"
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-[#e8f5ee] group-hover:text-[#1a8a4a]">
-                          <LayoutDashboard className="h-4 w-4" />
-                        </span>
-                        My Account
-                      </Link>
-                      <Link
-                        to="/my-account?tab=orders"
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-[#e8f5ee] group-hover:text-[#1a8a4a]">
-                          <Package className="h-4 w-4" />
-                        </span>
-                        My Orders
-                      </Link>
-                      <Link
-                        to="/my-account?tab=wishlist"
-                        className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-red-50 hover:text-red-500"
-                      >
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-red-100 group-hover:text-red-500">
-                          <Heart className="h-4 w-4" />
-                        </span>
-                        Wishlist
-                      </Link>
+                      {adminUser ? (
+                        <>
+                          <Link
+                            to="/dashboard"
+                            className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-[#e8f5ee] group-hover:text-[#1a8a4a]">
+                              <LayoutDashboard className="h-4 w-4" />
+                            </span>
+                            Admin Dashboard
+                          </Link>
+                          <Link
+                            to="/dashboard?tab=products"
+                            className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-[#e8f5ee] group-hover:text-[#1a8a4a]">
+                              <Package className="h-4 w-4" />
+                            </span>
+                            Manage Store
+                          </Link>
+                          <Link
+                            to="/dashboard?tab=orders"
+                            className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-[#e8f5ee] group-hover:text-[#1a8a4a]">
+                              <ShoppingCart className="h-4 w-4" />
+                            </span>
+                            Manage Orders
+                          </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link
+                            to="/my-account"
+                            className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-[#e8f5ee] group-hover:text-[#1a8a4a]">
+                              <LayoutDashboard className="h-4 w-4" />
+                            </span>
+                            My Account
+                          </Link>
+                          <Link
+                            to="/my-account?tab=orders"
+                            className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-[#f8fbf9] hover:text-[#1a8a4a]"
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-[#e8f5ee] group-hover:text-[#1a8a4a]">
+                              <Package className="h-4 w-4" />
+                            </span>
+                            My Orders
+                          </Link>
+                          <Link
+                            to="/my-account?tab=wishlist"
+                            className="group flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold text-gray-700 transition hover:bg-red-50 hover:text-red-500"
+                          >
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-50 text-gray-500 transition group-hover:bg-red-100 group-hover:text-red-500">
+                              <Heart className="h-4 w-4" />
+                            </span>
+                            Wishlist
+                          </Link>
+                        </>
+                      )}
                       </div>
                       <div className="border-t border-gray-100 p-2">
                         <button
@@ -362,14 +414,16 @@ export function Navbar() {
 
             {user ? (
               <div className="p-4">
-                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">My Account</h3>
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{adminUser ? 'Admin' : 'My Account'}</h3>
                 <div className="space-y-1">
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">
-                    <LayoutDashboard className="h-4 w-4" /> Dashboard
+                    <LayoutDashboard className="h-4 w-4" /> {adminUser ? 'Admin Dashboard' : 'Dashboard'}
                   </Link>
-                  <Link to="/my-account?tab=orders" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">
-                    <Package className="h-4 w-4" /> Orders
-                  </Link>
+                  {!adminUser && (
+                    <Link to="/my-account?tab=orders" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg">
+                      <Package className="h-4 w-4" /> Orders
+                    </Link>
+                  )}
                   <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg">
                     <LogOut className="h-4 w-4" /> Sign Out
                   </button>

@@ -4,6 +4,8 @@ export interface Product {
   model: string;
   price: number;
   img: string;
+  imgPublicId?: string;
+  imgStorage?: 'cloudinary' | 'local' | 'external' | '';
   description?: string;
   category?: string;
   config?: string;

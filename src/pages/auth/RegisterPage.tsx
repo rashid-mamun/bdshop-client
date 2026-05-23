@@ -20,6 +20,7 @@ import {
 import apiClient from '../../services/apiClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
+import { getPostAuthRedirect, getRouteFromLocationState, normalizeAuthUser } from '../../utils/auth';
 
 const registerSchema = z.object({
   displayName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -51,7 +52,7 @@ export default function RegisterPage() {
   const location = useLocation();
   const { success, error } = useToast();
 
-  const from = location.state?.from?.pathname || '/';
+  const from = getRouteFromLocationState(location.state);
 
   const {
     register,
@@ -79,9 +80,15 @@ export default function RegisterPage() {
       return res.data;
     },
     onSuccess: (res) => {
-      setUser(res.data);
+      const authUser = normalizeAuthUser(res);
+      if (!authUser) {
+        setErrorMsg('Account created, but account data could not be loaded. Please sign in.');
+        return;
+      }
+
+      setUser(authUser);
       success('Account created successfully!');
-      navigate(from, { replace: true });
+      navigate(getPostAuthRedirect(authUser, from), { replace: true });
     },
     onError: (err: any) => setErrorMsg(err.response?.data?.message || 'Registration failed. Please try again.'),
   });
@@ -92,9 +99,15 @@ export default function RegisterPage() {
       setErrorMsg('');
       try {
         const res = await apiClient.post('/auth/google', { token: tokenResponse.access_token });
-        setUser(res.data.data.user);
+        const authUser = normalizeAuthUser(res.data);
+        if (!authUser) {
+          setErrorMsg('Account created, but account data could not be loaded. Please sign in.');
+          return;
+        }
+
+        setUser(authUser);
         success('Account created successfully with Google!');
-        navigate(from, { replace: true });
+        navigate(getPostAuthRedirect(authUser, from), { replace: true });
       } catch (err: any) {
         error('Google registration failed. Please try again.');
         setErrorMsg(err.response?.data?.message || 'OAuth registration failed');

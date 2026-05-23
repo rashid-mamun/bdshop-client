@@ -17,6 +17,7 @@ import {
 import apiClient from '../../services/apiClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
+import { getPostAuthRedirect, getRouteFromLocationState, normalizeAuthUser } from '../../utils/auth';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -72,7 +73,7 @@ export default function LoginPage() {
   const location = useLocation();
   const { success, error } = useToast();
 
-  const from = location.state?.from?.pathname || '/';
+  const from = getRouteFromLocationState(location.state);
 
   const {
     register,
@@ -88,9 +89,15 @@ export default function LoginPage() {
       return res.data;
     },
     onSuccess: (res) => {
-      setUser(res.data);
-      success(`Welcome back, ${res.data.displayName}!`);
-      navigate(from, { replace: true });
+      const authUser = normalizeAuthUser(res);
+      if (!authUser) {
+        setErrorMsg('Login succeeded, but account data could not be loaded. Please try again.');
+        return;
+      }
+
+      setUser(authUser);
+      success(`Welcome back, ${authUser.displayName}!`);
+      navigate(getPostAuthRedirect(authUser, from), { replace: true });
     },
     onError: (err: any) => setErrorMsg(err.response?.data?.message || 'Invalid email or password'),
   });
@@ -105,9 +112,15 @@ export default function LoginPage() {
     setErrorMsg('');
     try {
       const res = await apiClient.post(`/auth/${endpoint}`, payload);
-      setUser(res.data.data.user);
-      success(`Welcome back, ${res.data.data.user.displayName}!`);
-      navigate(from, { replace: true });
+      const authUser = normalizeAuthUser(res.data);
+      if (!authUser) {
+        setErrorMsg('Login succeeded, but account data could not be loaded. Please try again.');
+        return;
+      }
+
+      setUser(authUser);
+      success(`Welcome back, ${authUser.displayName}!`);
+      navigate(getPostAuthRedirect(authUser, from), { replace: true });
     } catch (err: any) {
       error('Login failed. Please try again.');
       setErrorMsg(err.response?.data?.message || 'OAuth login failed');

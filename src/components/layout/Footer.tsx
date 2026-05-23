@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Package, Mail, ArrowRight, MapPin, Phone } from 'lucide-react';
+import { useAuthStore } from '../../store/useAuthStore';
+import { isAdminUser } from '../../utils/auth';
 
 const FacebookIcon = () => (
   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -31,14 +33,6 @@ const QUICK_LINKS = [
   { to: '/about', label: 'About Us' },
 ];
 
-const CUSTOMER_LINKS = [
-  { to: '/my-account', label: 'My Account' },
-  { to: '/order-history', label: 'Order History' },
-  { to: '/track-order', label: 'Track Order' },
-  { to: '/returns', label: 'Returns & Refunds' },
-  { to: '/help', label: 'Help Center' },
-];
-
 const SOCIALS = [
   { icon: <FacebookIcon />, href: '#', label: 'Facebook', hoverCls: 'hover:bg-blue-600 hover:border-blue-600' },
   { icon: <TwitterIcon />, href: '#', label: 'Twitter', hoverCls: 'hover:bg-gray-700 hover:border-gray-700' },
@@ -63,6 +57,15 @@ const DELIVERY = [
 export function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const adminUser = isAdminUser(user);
+  const customerLinks = [
+    { to: adminUser ? '/dashboard' : '/my-account', label: adminUser ? 'Admin Dashboard' : 'My Account' },
+    { to: adminUser ? '/dashboard?tab=orders' : '/order-history', label: adminUser ? 'Manage Orders' : 'Order History' },
+    { to: '/track-order', label: 'Track Order' },
+    { to: '/returns', label: 'Returns & Refunds' },
+    { to: '/help', label: 'Help Center' },
+  ];
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,7 +180,7 @@ export function Footer() {
           <div>
             <h4 className="text-white font-semibold text-base mb-5 after:block after:w-8 after:h-0.5 after:bg-green-500 after:mt-2">Customer Service</h4>
             <ul className="space-y-3">
-              {CUSTOMER_LINKS.map((l) => (
+              {customerLinks.map((l) => (
                 <li key={l.label}>
                   <Link
                     to={l.to}
