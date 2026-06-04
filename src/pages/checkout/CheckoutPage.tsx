@@ -10,22 +10,28 @@ import apiClient from '../../services/apiClient';
 import { useCartStore } from '../../store/useCartStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
+import { formatBDT } from '../../utils/currency';
+import { toUserFriendlyError } from '../../utils/userFriendlyError';
 import { CheckCircle, Package, CreditCard, MapPin, Tag, ShoppingBag, Lock, ShieldCheck, Truck, Banknote } from 'lucide-react';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51TVvR9GnaqZJE5mQ8g3FhQNV5W4g45Pc2dMHPU0UY82uL9LByW7t6KicL4LdYIMpmVWzl4zMw9M1hXV3wFtHCdGs000loFpQ19');
-
-const SHIPPING_RATE = 120; // 120 BDT
-const TAX_RATE = 0; // 0% tax for simplicity, but could be 0.05
-const VALID_COUPONS: Record<string, number> = {
-  BDSHOP10: 0.10,
-  SAVE20: 0.20,
-  NEWUSER15: 0.15,
-};
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
 const BD_DIVISIONS = ['Dhaka', 'Chittagong', 'Rajshahi', 'Sylhet', 'Khulna', 'Barisal', 'Rangpur', 'Mymensingh'];
 
+const rememberLastOrder = (order: any) => {
+  const orderInfo = {
+    orderId: order?.orderNumber || order?._id || '',
+    email: order?.email || '',
+    total: order?.total || 0,
+  };
+  if (orderInfo.orderId) {
+    window.localStorage.setItem('bdshop-last-order', JSON.stringify(orderInfo));
+  }
+  return orderInfo;
+};
+
 const shippingSchema = z.object({
-  email: z.string().email('Valid email is required').optional().or(z.literal('')),
+  email: z.string().email('Valid email is required'),
   fullName: z.string().min(2, 'Full name is required'),
   phone: z.string().min(11, 'Phone number is required'),
   street: z.string().min(5, 'Street address is required'),
@@ -36,7 +42,21 @@ const shippingSchema = z.object({
 });
 type ShippingFormValues = z.infer<typeof shippingSchema>;
 
-/* ─── Stripe payment form ─── */
+type CheckoutQuote = {
+  items: Array<{ serviceId: string; name: string; price: number; quantity: number }>;
+  totals: {
+    subtotal: number;
+    discount: number;
+    discountRate: number;
+    couponCode: string;
+    couponValid: boolean;
+    shippingFee: number;
+    tax: number;
+    total: number;
+  };
+};
+
+/* â”€â”€â”€ Stripe payment form â”€â”€â”€ */
 function StripePaymentForm({ orderData }: { orderData: any }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -51,8 +71,13 @@ function StripePaymentForm({ orderData }: { orderData: any }) {
       const res = await apiClient.post('/orders', data);
       return res.data;
     },
-    onSuccess: () => { clearCart(); success('Order placed successfully!'); navigate('/dashboard'); },
-    onError: (err: any) => toastError(err.response?.data?.message || 'Order failed. Please try again.'),
+    onSuccess: (response) => {
+      const orderInfo = rememberLastOrder(response.data);
+      clearCart();
+      success('Order placed successfully!');
+      navigate('/thank-you', { state: orderInfo });
+    },
+    onError: (err: any) => toastError(err.response?.data?.error || err.response?.data?.message || 'Order failed. Please try again.'),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,13 +102,12 @@ function StripePaymentForm({ orderData }: { orderData: any }) {
         }
       });
       if (error) { 
-        setStripeError(error.message || 'Payment error'); 
+        setStripeError(toUserFriendlyError(error, 'Payment is temporarily unavailable. Please try Cash on Delivery or contact support.')); 
       }
       else { 
         mutation.mutate({ ...orderData, paymentMethodId: paymentMethod.id, paymentStatus: 'paid' }, {
           onError: (err: any) => {
-            const serverMsg = err.response?.data?.error || err.response?.data?.message || 'Order creation failed';
-            setStripeError(serverMsg);
+            setStripeError(toUserFriendlyError(err, 'Order could not be placed. Please try again or choose Cash on Delivery.'));
           }
         }); 
       }
@@ -183,16 +207,16 @@ function StripePaymentForm({ orderData }: { orderData: any }) {
         className="w-full flex items-center justify-center gap-2 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-black py-4 rounded-2xl transition-all hover:shadow-lg hover:shadow-green-900/15 active:scale-[0.98] disabled:opacity-60 text-base"
       >
         <Lock className="h-4 w-4" />
-        {processing || mutation.isPending ? 'Processing...' : `Pay ৳${orderData.finalTotal?.toLocaleString()}`}
+        {processing || mutation.isPending ? 'Processing...' : `Pay ${formatBDT(orderData.finalTotal)}`}
       </button>
       <p className="text-center text-xs text-gray-400">
-        Test card: 4242 4242 4242 4242 · Any future date · Any 3-digit CVC
+        Test card: 4242 4242 4242 4242 Â· Any future date Â· Any 3-digit CVC
       </p>
     </form>
   );
 }
 
-/* ─── Step indicator ─── */
+/* â”€â”€â”€ Step indicator â”€â”€â”€ */
 const STEPS = [
   { label: 'Cart', icon: ShoppingBag },
   { label: 'Shipping', icon: MapPin },
@@ -233,26 +257,27 @@ function StepBar({ step }: { step: number }) {
   );
 }
 
-/* ─── Input helper ─── */
+/* â”€â”€â”€ Input helper â”€â”€â”€ */
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">⚠ {error}</p>}
+      {error && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">âš  {error}</p>}
     </div>
   );
 }
 
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30 focus:border-[#1a8a4a] transition-all bg-white';
 
-/* ─── Main page ─── */
+/* â”€â”€â”€ Main page â”€â”€â”€ */
 export default function CheckoutPage() {
   const [step, setStep] = useState(1);
   const [shippingData, setShippingData] = useState<ShippingFormValues | null>(null);
-  const [discount, setDiscount] = useState(0);
+  const [serverQuote, setServerQuote] = useState<CheckoutQuote | null>(null);
   const [couponMsg, setCouponMsg] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cod'>('card');
+  const [quoting, setQuoting] = useState(false);
   const { items } = useCartStore();
   const { user } = useAuthStore();
   const { clearCart } = useCartStore();
@@ -271,20 +296,44 @@ export default function CheckoutPage() {
   });
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
-  const discountAmt = subtotal * discount;
-  const afterDiscount = subtotal - discountAmt;
-  const tax = afterDiscount * TAX_RATE;
-  const shipping = subtotal > 0 ? SHIPPING_RATE : 0;
-  const finalTotal = afterDiscount + tax + shipping;
+  const displayTotals = serverQuote?.totals || {
+    subtotal,
+    discount: 0,
+    discountRate: 0,
+    couponCode: '',
+    couponValid: false,
+    shippingFee: subtotal > 0 ? 120 : 0,
+    tax: 0,
+    total: subtotal > 0 ? subtotal + 120 : 0,
+  };
 
   const handleCoupon = () => {
     const code = getValues('coupon')?.toUpperCase().trim() || '';
-    if (VALID_COUPONS[code]) {
-      setDiscount(VALID_COUPONS[code]);
-      setCouponMsg(`✓ ${Math.round(VALID_COUPONS[code] * 100)}% discount applied!`);
-    } else {
-      setDiscount(0);
-      setCouponMsg('Invalid coupon code');
+    setCouponMsg(code ? 'Coupon will be verified by the server before payment.' : 'Enter a coupon code first.');
+  };
+
+  const createQuote = async (data: ShippingFormValues) => {
+    setQuoting(true);
+    try {
+      const res = await apiClient.post('/orders/quote', {
+        items: items.map((i) => ({ serviceId: i._id, quantity: i.quantity })),
+        couponCode: data.coupon,
+      });
+      const quote = res.data.data as CheckoutQuote;
+      setServerQuote(quote);
+      setShippingData(data);
+      if (data.coupon) {
+        setCouponMsg(
+          quote.totals.couponValid
+            ? `Coupon ${quote.totals.couponCode} applied by server.`
+            : 'Coupon was not valid and was not applied.',
+        );
+      }
+      setStep(2);
+    } catch (err: any) {
+      toastError(toUserFriendlyError(err, 'Unable to verify checkout total. Please try again.'));
+    } finally {
+      setQuoting(false);
     }
   };
 
@@ -293,8 +342,13 @@ export default function CheckoutPage() {
       const res = await apiClient.post('/orders', data);
       return res.data;
     },
-    onSuccess: () => { clearCart(); success('Order placed! Pay on delivery.'); navigate('/dashboard'); },
-    onError: (err: any) => toastError(err.response?.data?.message || 'Order failed. Please try again.'),
+    onSuccess: (response) => {
+      const orderInfo = rememberLastOrder(response.data);
+      clearCart();
+      success('Order placed! Pay on delivery.');
+      navigate('/thank-you', { state: orderInfo });
+    },
+    onError: (err: any) => toastError(err.response?.data?.error || err.response?.data?.message || 'Order failed. Please try again.'),
   });
 
   const handleCODSubmit = () => {
@@ -319,8 +373,7 @@ export default function CheckoutPage() {
 
   const orderPayload = {
     email: user?.email || shippingData?.email,
-    items: items.map((i) => ({ serviceId: i._id, name: i.model, price: i.price, quantity: i.quantity })),
-    total: finalTotal,
+    items: items.map((i) => ({ serviceId: i._id, quantity: i.quantity })),
     shippingAddress: shippingData ? { 
       fullName: shippingData.fullName,
       street: shippingData.street, 
@@ -330,9 +383,18 @@ export default function CheckoutPage() {
       country: 'Bangladesh',
       phone: shippingData.phone
     } : null,
+    couponCode: shippingData?.coupon,
     status: 'pending',
-    finalTotal,
+    finalTotal: displayTotals.total,
   };
+  const summaryItems = items.map((item) => {
+    const quotedItem = serverQuote?.items.find((quoteItem) => quoteItem.serviceId === item._id);
+    return {
+      ...item,
+      model: quotedItem?.name || item.model,
+      price: quotedItem?.price ?? item.price,
+    };
+  });
 
   return (
     <div className="bg-[#f8f9fa] min-h-screen pb-20 md:pb-0">
@@ -355,7 +417,7 @@ export default function CheckoutPage() {
       <div className="bd-container py-6 md:py-8">
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-          {/* ── Left: Form ── */}
+          {/* â”€â”€ Left: Form â”€â”€ */}
           <div className="flex-1">
 
             {/* Step 1: Shipping */}
@@ -368,7 +430,7 @@ export default function CheckoutPage() {
                   <p className="mt-1 text-sm font-medium text-gray-500">Tell us where to deliver your order.</p>
                 </div>
                 <div className="p-6 md:p-8">
-                <form id="shipping-form" onSubmit={handleSubmit((d) => { setShippingData(d); setStep(2); })} className="space-y-5">
+                <form id="shipping-form" onSubmit={handleSubmit(createQuote)} className="space-y-5">
                   {!user && (
                     <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
                       <p className="text-sm font-bold text-green-900">Guest checkout</p>
@@ -425,7 +487,7 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                     {couponMsg && (
-                      <p className={`text-sm mt-2 font-bold ${discount > 0 ? 'text-[#1a8a4a]' : 'text-red-500'}`}>
+                      <p className={`text-sm mt-2 font-bold ${serverQuote?.totals.couponValid ? 'text-[#1a8a4a]' : 'text-amber-600'}`}>
                         {couponMsg}
                       </p>
                     )}
@@ -434,9 +496,10 @@ export default function CheckoutPage() {
                 <button
                   form="shipping-form"
                   type="submit"
-                  className="w-full mt-8 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold py-4 rounded-xl transition-all hover:shadow-lg active:scale-[0.98] text-base"
+                  disabled={quoting}
+                  className="w-full mt-8 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold py-4 rounded-xl transition-all hover:shadow-lg active:scale-[0.98] text-base disabled:opacity-60"
                 >
-                  Continue to Payment
+                  {quoting ? 'Verifying total...' : 'Continue to Payment'}
                 </button>
                 </div>
               </div>
@@ -501,12 +564,12 @@ export default function CheckoutPage() {
                         <Banknote className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
                         <div>
                           <p className="text-sm font-black text-amber-900">Cash on Delivery</p>
-                          <p className="text-xs font-medium text-amber-700 mt-1">Please have the exact amount of <span className="font-black">৳{orderPayload.finalTotal?.toLocaleString()}</span> ready when the delivery arrives.</p>
+                          <p className="text-xs font-medium text-amber-700 mt-1">Please have the exact amount of <span className="font-black">{formatBDT(orderPayload.finalTotal)}</span> ready when the delivery arrives.</p>
                         </div>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-xs font-bold text-gray-500">
-                          <Truck className="h-3.5 w-3.5 text-[#1a8a4a]" /> Delivery in 24–72 hrs
+                          <Truck className="h-3.5 w-3.5 text-[#1a8a4a]" /> Delivery in 24â€“72 hrs
                         </div>
                         <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-xs font-bold text-gray-500">
                           <ShieldCheck className="h-3.5 w-3.5 text-[#1a8a4a]" /> Buyer protected
@@ -518,7 +581,7 @@ export default function CheckoutPage() {
                         className="w-full flex items-center justify-center gap-2 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-black py-4 rounded-2xl transition-all hover:shadow-lg hover:shadow-green-900/15 active:scale-[0.98] disabled:opacity-60 text-base"
                       >
                         <Banknote className="h-4 w-4" />
-                        {codMutation.isPending ? 'Placing order...' : `Place Order — Pay ৳${orderPayload.finalTotal?.toLocaleString()} on Delivery`}
+                        {codMutation.isPending ? 'Placing order...' : `Place Order - Pay ${formatBDT(orderPayload.finalTotal)} on Delivery`}
                       </button>
                     </div>
                   )}
@@ -527,14 +590,14 @@ export default function CheckoutPage() {
                     onClick={() => setStep(1)}
                     className="w-full py-3 text-sm font-semibold text-gray-500 hover:text-[#1a8a4a] transition-colors"
                   >
-                    ← Edit Shipping Details
+                    â† Edit Shipping Details
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* ── Right: Order Summary ── */}
+          {/* â”€â”€ Right: Order Summary â”€â”€ */}
           <div className="w-full shrink-0">
             <div className="overflow-hidden bg-white rounded-3xl border border-gray-100 shadow-sm sticky top-24">
               <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white p-6">
@@ -558,7 +621,7 @@ export default function CheckoutPage() {
 
               {/* Items */}
               <div className="space-y-5 max-h-[42vh] overflow-y-auto p-6 pr-3 custom-scrollbar">
-                {items.map((item) => (
+                {summaryItems.map((item) => (
                   <div key={item._id} className="flex gap-4 group">
                     <div className="relative shrink-0">
                       <div className="relative w-16 h-16 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center p-2 group-hover:border-[#1a8a4a]/30 transition-colors overflow-hidden">
@@ -581,7 +644,7 @@ export default function CheckoutPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-gray-900 line-clamp-2 leading-snug group-hover:text-[#1a8a4a] transition-colors">{item.model}</p>
                       <p className="text-sm font-black text-[#1a8a4a] mt-1.5 uppercase tracking-tight">
-                        ৳{(item.price * item.quantity).toLocaleString()}
+                        {formatBDT(item.price * item.quantity)}
                       </p>
                     </div>
                   </div>
@@ -592,19 +655,19 @@ export default function CheckoutPage() {
               <div className="border-t border-gray-100 p-6 space-y-4 text-sm">
                 <div className="flex justify-between text-gray-500 font-medium">
                   <span>Subtotal</span>
-                  <span className="text-gray-900">৳{subtotal.toLocaleString()}</span>
+                  <span className="text-gray-900">{formatBDT(displayTotals.subtotal)}</span>
                 </div>
-                {discount > 0 && (
+                {displayTotals.discount > 0 && (
                   <div className="flex justify-between items-center bg-green-50/50 p-2.5 rounded-xl border border-green-100/50">
                     <span className="text-green-700 font-bold flex items-center gap-1">
-                      <Tag className="h-3.5 w-3.5" /> Discount ({Math.round(discount * 100)}%)
+                      <Tag className="h-3.5 w-3.5" /> Discount ({Math.round(displayTotals.discountRate * 100)}%)
                     </span>
-                    <span className="text-green-700 font-black">−৳{discountAmt.toLocaleString()}</span>
+                    <span className="text-green-700 font-black">-{formatBDT(displayTotals.discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-500 font-medium">
                   <span>Shipping Fee</span>
-                  <span className="text-gray-900">৳{shipping.toLocaleString()}</span>
+                  <span className="text-gray-900">{formatBDT(displayTotals.shippingFee)}</span>
                 </div>
                 
                 <div className="flex justify-between items-end pt-4 border-t border-gray-50">
@@ -612,7 +675,7 @@ export default function CheckoutPage() {
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Total to Pay</span>
                     <p className="text-gray-900 text-sm font-medium opacity-50">VAT Included</p>
                   </div>
-                  <span className="text-[#1a8a4a] text-3xl font-black tracking-tight italic">৳{finalTotal.toLocaleString()}</span>
+                  <span className="text-[#1a8a4a] text-3xl font-black tracking-tight italic">{formatBDT(displayTotals.total)}</span>
                 </div>
               </div>
 

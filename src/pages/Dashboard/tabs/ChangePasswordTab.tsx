@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Check, Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import apiClient from '../../../services/apiClient';
 import { useToast } from '../../../hooks/useToast';
+import { toUserFriendlyError } from '../../../utils/userFriendlyError';
 
 function StrengthBar({ password }: { password: string }) {
   const checks = [/.{8,}/, /[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/];
@@ -67,9 +68,9 @@ export default function ChangePasswordTab() {
       setErrors({});
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to change password';
-      if (msg.toLowerCase().includes('current')) setErrors({ currentPassword: 'Current password is incorrect' });
-      else toastError(msg);
+      const rawMsg = String(err.response?.data?.message || err.response?.data?.error || err.message || '');
+      if (rawMsg.toLowerCase().includes('current')) setErrors({ currentPassword: 'Current password is incorrect' });
+      else toastError(toUserFriendlyError(err, 'Failed to change password. Please try again.'));
     },
   });
 

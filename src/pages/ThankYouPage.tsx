@@ -1,9 +1,28 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { CheckCircle, Package, Truck, ArrowRight, Home, Clock, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useAuthStore } from '../store/useAuthStore';
 
 export default function ThankYouPage() {
-  const orderId = `BDS-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+  const { isAuthenticated } = useAuthStore();
+  const location = useLocation();
+  const savedOrderInfo = (() => {
+    try {
+      return JSON.parse(window.localStorage.getItem('bdshop-last-order') || '{}');
+    } catch {
+      return {};
+    }
+  })();
+  const orderInfo = {
+    ...savedOrderInfo,
+    ...((location.state as Record<string, unknown> | null) || {}),
+  };
+  const orderId = String(orderInfo.orderId || '');
+  const orderEmail = String(orderInfo.email || '');
+  const trackOrderUrl =
+    orderId && orderEmail
+      ? `/track-order?orderId=${encodeURIComponent(orderId)}&email=${encodeURIComponent(orderEmail)}`
+      : '/track-order';
 
   return (
     <div className="bg-[#f8f9fa] min-h-[80vh] flex items-center justify-center px-6 py-16 pb-24 md:pb-16">
@@ -52,7 +71,7 @@ export default function ThankYouPage() {
           <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-3">Order Details</p>
           <div className="flex items-center justify-between mb-3 pb-3 border-b border-gray-100">
             <span className="text-sm text-gray-600">Order ID</span>
-            <span className="font-bold text-[#1a1a1a] font-mono">{orderId}</span>
+            <span className="font-bold text-[#1a1a1a] font-mono">{orderId || 'Check your email'}</span>
           </div>
 
           <div className="space-y-3">
@@ -79,10 +98,10 @@ export default function ThankYouPage() {
           className="flex flex-col sm:flex-row gap-3"
         >
           <Link
-            to="/dashboard"
+            to={isAuthenticated ? '/my-account?tab=orders' : trackOrderUrl}
             className="flex-1 flex items-center justify-center gap-2 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold py-3.5 rounded-xl transition-all hover:shadow-lg active:scale-[0.98]"
           >
-            View My Orders <ArrowRight className="h-4 w-4" />
+            {isAuthenticated ? 'View My Orders' : 'Track Order'} <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
             to="/"

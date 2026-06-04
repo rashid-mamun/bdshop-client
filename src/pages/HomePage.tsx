@@ -285,9 +285,9 @@ export default function HomePage() {
 
   const heroProduct = featuredProducts?.[0];
   const showHeroVisual = true;
-  const flashDisplay = flashProducts?.length ? flashProducts : FALLBACK_PRODUCTS.filter((p) => p.isFlashDeal);
-  const newDisplay = newArrivals?.length ? newArrivals : FALLBACK_PRODUCTS.filter((p) => p.isNewArrival);
-  const featuredDisplay = featuredProducts?.length ? featuredProducts : FALLBACK_PRODUCTS;
+  const flashDisplay = flashProducts || [];
+  const newDisplay = newArrivals || [];
+  const featuredDisplay = featuredProducts || [];
 
   return (
     <div className="flex flex-col min-h-screen pb-16 md:pb-0 overflow-x-hidden">

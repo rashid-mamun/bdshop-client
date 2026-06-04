@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { toUserFriendlyError } from '../utils/userFriendlyError';
 
 interface Toast {
   id: string;
@@ -31,7 +32,7 @@ export function useToast() {
     removeToast,
     toast: (message: string, type?: 'success' | 'error' | 'info') => addToast(message, type),
     success: (message: string) => addToast(message, 'success'),
-    error: (message: string) => addToast(message, 'error'),
+    error: (message: string) => addToast(toUserFriendlyError(message), 'error'),
     info: (message: string) => addToast(message, 'info'),
   };
 }

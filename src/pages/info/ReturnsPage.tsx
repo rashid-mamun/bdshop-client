@@ -10,6 +10,8 @@ import {
   Truck,
   Upload,
 } from 'lucide-react';
+import apiClient from '../../services/apiClient';
+import { useToast } from '../../hooks/useToast';
 
 const FAQS = [
   { q: 'What is the return window?', a: 'You have 30 days from the date of delivery to initiate a return for most items.' },
@@ -29,6 +31,35 @@ const InputClass = 'h-12 w-full rounded-xl border border-gray-200 bg-[#fbfcfd] p
 
 export default function ReturnsPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [form, setForm] = useState({
+    orderId: '',
+    email: '',
+    itemScope: '',
+    reason: '',
+    details: '',
+  });
+  const { success, error: toastError } = useToast();
+
+  const updateForm = (field: keyof typeof form, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleReturnSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    try {
+      await apiClient.post('/public/returns', form);
+      setSubmitted(true);
+      success('Return request submitted.');
+      setForm({ orderId: '', email: '', itemScope: '', reason: '', details: '' });
+    } catch (err: any) {
+      toastError(err.response?.data?.error || 'Return request failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-16">
@@ -154,15 +185,20 @@ export default function ReturnsPage() {
               </div>
             </div>
 
-            <form className="mx-auto max-w-3xl space-y-6 p-6 lg:p-8" onSubmit={(e) => e.preventDefault()}>
+            <form className="mx-auto max-w-3xl space-y-6 p-6 lg:p-8" onSubmit={handleReturnSubmit}>
+              {submitted && (
+                <div className="rounded-2xl border border-green-100 bg-green-50 p-4 text-sm font-bold text-green-700">
+                  Return request received. Check your email for confirmation.
+                </div>
+              )}
               <div className="grid gap-5 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-[15px] font-black text-gray-950">Order ID</span>
-                  <input type="text" className={InputClass} placeholder="e.g. BDS-XYZ123" />
+                  <input type="text" required value={form.orderId} onChange={(event) => updateForm('orderId', event.target.value)} className={InputClass} placeholder="Mongo order ID" />
                 </label>
                 <label className="block">
                   <span className="mb-2 block text-[15px] font-black text-gray-950">Email Address</span>
-                  <input type="email" className={InputClass} placeholder="your@email.com" />
+                  <input type="email" required value={form.email} onChange={(event) => updateForm('email', event.target.value)} className={InputClass} placeholder="your@email.com" />
                 </label>
               </div>
 
@@ -170,10 +206,10 @@ export default function ReturnsPage() {
                 <label className="block">
                   <span className="mb-2 block text-[15px] font-black text-gray-950">Select Item(s)</span>
                   <span className="relative block">
-                    <select className={`${InputClass} appearance-none pr-10`}>
+                    <select required value={form.itemScope} onChange={(event) => updateForm('itemScope', event.target.value)} className={`${InputClass} appearance-none pr-10`}>
                       <option value="">Select an item from order...</option>
-                      <option value="1">Entire Order</option>
-                      <option value="2">Specific Items</option>
+                      <option value="entire_order">Entire Order</option>
+                      <option value="specific_items">Specific Items</option>
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                   </span>
@@ -182,7 +218,7 @@ export default function ReturnsPage() {
                 <label className="block">
                   <span className="mb-2 block text-[15px] font-black text-gray-950">Reason for Return</span>
                   <span className="relative block">
-                    <select className={`${InputClass} appearance-none pr-10`}>
+                    <select required value={form.reason} onChange={(event) => updateForm('reason', event.target.value)} className={`${InputClass} appearance-none pr-10`}>
                       <option value="">Select a reason...</option>
                       <option value="damaged">Damaged Item</option>
                       <option value="wrong">Wrong Item Received</option>
@@ -197,7 +233,7 @@ export default function ReturnsPage() {
 
               <label className="block">
                 <span className="mb-2 block text-[15px] font-black text-gray-950">Additional Details</span>
-                <textarea rows={4} className={`${InputClass} h-36 resize-y py-4`} placeholder="Please provide any additional information..." />
+                <textarea rows={4} value={form.details} onChange={(event) => updateForm('details', event.target.value)} className={`${InputClass} h-36 resize-y py-4`} placeholder="Please provide any additional information..." />
               </label>
 
               <label className="block">
@@ -211,8 +247,8 @@ export default function ReturnsPage() {
                 </div>
               </label>
 
-              <button type="submit" className="group mx-auto flex min-h-[56px] w-full items-center justify-center gap-3 rounded-2xl bg-[#1a8a4a] px-7 text-base font-black text-white shadow-[0_14px_30px_rgba(26,138,74,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#157a3f] hover:shadow-[0_18px_36px_rgba(26,138,74,0.28)] active:translate-y-0 active:scale-[0.99] sm:w-auto sm:min-w-[340px]">
-                <span>Submit Return Request</span>
+              <button type="submit" disabled={submitting} className="group mx-auto flex min-h-[56px] w-full items-center justify-center gap-3 rounded-2xl bg-[#1a8a4a] px-7 text-base font-black text-white shadow-[0_14px_30px_rgba(26,138,74,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#157a3f] hover:shadow-[0_18px_36px_rgba(26,138,74,0.28)] active:translate-y-0 active:scale-[0.99] disabled:opacity-60 sm:w-auto sm:min-w-[340px]">
+                <span>{submitting ? 'Submitting...' : 'Submit Return Request'}</span>
                 <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 transition group-hover:bg-white/20 group-hover:translate-x-0.5">
                   <CheckCircle className="h-4 w-4" />
                 </span>

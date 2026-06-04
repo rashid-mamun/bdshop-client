@@ -4,6 +4,7 @@ import apiClient from '../../services/apiClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../../hooks/useToast';
+import { toUserFriendlyError } from '../../utils/userFriendlyError';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
@@ -95,7 +96,7 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
       }));
       setImageUploadInfo(storage === 'local' ? 'Uploaded locally and URL filled.' : 'Uploaded to Cloudinary and URL filled.');
     } catch (error: any) {
-      setImageUploadError(error.response?.data?.error || error.message || 'Image upload failed');
+      setImageUploadError(toUserFriendlyError(error, 'Image upload failed. Please try another image.'));
     } finally {
       setIsUploadingImage(false);
       event.target.value = '';
@@ -237,13 +238,13 @@ export default function AdminDashboard() {
   const createProductMutation = useMutation({
     mutationFn: (data: any) => apiClient.post('/services', data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); setShowProductForm(false); success('Product created!'); },
-    onError: (e: any) => toastError(e.response?.data?.message || 'Create failed'),
+    onError: (e: any) => toastError(toUserFriendlyError(e, 'Product could not be created. Please try again.')),
   });
 
   const updateProductMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiClient.put(`/services/${id}`, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); setEditingProduct(null); success('Product updated!'); },
-    onError: (e: any) => toastError(e.response?.data?.message || 'Update failed'),
+    onError: (e: any) => toastError(toUserFriendlyError(e, 'Product could not be updated. Please try again.')),
   });
 
   const deleteProductMutation = useMutation({
@@ -255,7 +256,7 @@ export default function AdminDashboard() {
   const updateOrderMutation = useMutation({
     mutationFn: ({ id, status, paymentStatus }: { id: string; status?: string; paymentStatus?: string }) => apiClient.put(`/orders/${id}`, { status, paymentStatus }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-orders'] }); success('Order updated!'); },
-    onError: (e: any) => toastError(e.response?.data?.error || 'Order update failed'),
+    onError: (e: any) => toastError(toUserFriendlyError(e, 'Order could not be updated. Please try again.')),
   });
 
   const makeAdminMutation = useMutation({
@@ -267,7 +268,7 @@ export default function AdminDashboard() {
   const deactivateUserMutation = useMutation({
     mutationFn: (email: string) => apiClient.put(`/users/${email}/deactivate`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); success('User deactivated'); },
-    onError: (e: any) => toastError(e.response?.data?.error || 'User deactivation failed'),
+    onError: (e: any) => toastError(toUserFriendlyError(e, 'User could not be deactivated. Please try again.')),
   });
 
   // Analytics

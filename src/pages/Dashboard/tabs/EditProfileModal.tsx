@@ -22,10 +22,8 @@ export default function EditProfileModal({ onClose }: { onClose: () => void }) {
   const [avatarPreview, setAvatarPreview] = useState<string>((user as any)?.profileImage || '');
 
   const mutation = useMutation({
-    mutationFn: async (data: FormData) => {
-      const res = await apiClient.put('/users/profile/me', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+    mutationFn: async (data: typeof form) => {
+      const res = await apiClient.put('/users/profile/me', data);
       return res.data.data;
     },
     onSuccess: (data) => {
@@ -56,13 +54,11 @@ export default function EditProfileModal({ onClose }: { onClose: () => void }) {
       toastError('Name is required');
       return;
     }
-    const fd = new FormData();
-    fd.append('displayName', form.displayName);
-    fd.append('phone', form.phone);
-    fd.append('dob', form.dob);
-    fd.append('gender', form.gender);
-    if (avatar) fd.append('avatar', avatar);
-    mutation.mutate(fd);
+    if (avatar) {
+      toastError('Profile photo upload is not available for user profiles yet.');
+      return;
+    }
+    mutation.mutate(form);
   };
 
   return (

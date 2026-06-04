@@ -1,9 +1,7 @@
-import { Link, useRouteError } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 
 export function ErrorBoundary() {
-  const error = useRouteError() as Error | undefined;
-
   return (
     <div className="flex min-h-[70vh] items-center justify-center bg-[#f8f9fa] px-6 py-16 text-center">
       <div className="max-w-md rounded-3xl border border-red-100 bg-white p-8 shadow-sm">
@@ -12,7 +10,7 @@ export function ErrorBoundary() {
         </div>
         <h1 className="text-2xl font-black text-gray-900">Something went wrong</h1>
         <p className="mt-2 text-sm leading-6 text-gray-500">
-          {error?.message || 'The page could not be loaded. Please try again.'}
+          The page could not be loaded. Please refresh or try again in a moment.
         </p>
         <Link to="/" className="mt-6 inline-flex rounded-xl bg-[#1a8a4a] px-6 py-3 text-sm font-bold text-white hover:bg-[#157a3f]">
           Back to home

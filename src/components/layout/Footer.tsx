@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Package, Mail, ArrowRight, MapPin, Phone } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { isAdminUser } from '../../utils/auth';
+import apiClient from '../../services/apiClient';
+import { useToast } from '../../hooks/useToast';
 
 const FacebookIcon = () => (
   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -57,6 +59,8 @@ const DELIVERY = [
 export function Footer() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
+  const { success, error: toastError } = useToast();
   const user = useAuthStore((state) => state.user);
   const adminUser = isAdminUser(user);
   const customerLinks = [
@@ -67,11 +71,19 @@ export function Footer() {
     { to: '/help', label: 'Help Center' },
   ];
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim()) {
+    if (!email.trim()) return;
+    setSubscribing(true);
+    try {
+      await apiClient.post('/public/newsletter', { email, source: 'footer' });
       setSubscribed(true);
       setEmail('');
+      success('Subscribed successfully.');
+    } catch (err: any) {
+      toastError(err.response?.data?.error || 'Subscription failed.');
+    } finally {
+      setSubscribing(false);
     }
   };
 
@@ -98,14 +110,17 @@ export function Footer() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Your email address"
+                  name="bdshop-newsletter-email"
+                  autoComplete="off"
                   className="w-full pl-10 pr-4 py-3 text-sm bg-white text-gray-900 rounded-l-xl focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                 />
               </div>
               <button
                 type="submit"
-                className="flex items-center gap-2 px-5 py-3 bg-white text-[#1a8a4a] text-sm font-bold rounded-r-xl hover:bg-gray-50 transition-colors whitespace-nowrap"
+                disabled={subscribing}
+                className="flex items-center gap-2 px-5 py-3 bg-white text-[#1a8a4a] text-sm font-bold rounded-r-xl hover:bg-gray-50 transition-colors whitespace-nowrap disabled:opacity-60"
               >
-                Subscribe <ArrowRight className="h-4 w-4" />
+                {subscribing ? 'Sending...' : 'Subscribe'} <ArrowRight className="h-4 w-4" />
               </button>
             </form>
           )}

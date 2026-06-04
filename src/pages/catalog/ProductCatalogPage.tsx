@@ -134,7 +134,7 @@ export default function ProductCatalogPage() {
 
   const hasActiveFilters = !!(search || category || sort || minPrice || maxPrice || ratingFilter || inStock);
   const apiProducts = (data?.services || []) as any[];
-  let products = apiProducts.length || hasActiveFilters ? apiProducts : CATALOG_FALLBACK_PRODUCTS;
+  let products = apiProducts;
   const pagination = data?.pagination;
   const totalPages = pagination?.pages || 1;
   const totalCount = pagination?.total || products.length;

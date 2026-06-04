@@ -1,19 +1,29 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowLeft, CheckCircle, Package } from 'lucide-react';
+import apiClient from '../../services/apiClient';
+import { useToast } from '../../hooks/useToast';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [devResetToken, setDevResetToken] = useState('');
+  const { error: toastError } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setIsLoading(false);
-    setSubmitted(true);
+    try {
+      const response = await apiClient.post('/users/password-reset/request', { email });
+      setDevResetToken(response.data?.data?.resetToken || '');
+      setSubmitted(true);
+    } catch (err: any) {
+      toastError(err.response?.data?.error || 'Unable to request password reset.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -79,6 +89,11 @@ export default function ForgotPasswordPage() {
                 <p className="text-sm text-gray-600 leading-relaxed">
                   If an account exists for <strong>{email}</strong>, you'll receive a password reset email shortly.
                 </p>
+                {devResetToken && (
+                  <p className="w-full rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-700">
+                    Development reset token: {devResetToken}
+                  </p>
+                )}
                 <Link
                   to="/login"
                   className="w-full bg-gray-100 hover:bg-gray-200 text-[#1a1a1a] font-bold py-3.5 rounded-xl transition-all mt-4 flex justify-center items-center gap-2"

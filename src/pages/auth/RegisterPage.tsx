@@ -21,6 +21,7 @@ import apiClient from '../../services/apiClient';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
 import { getPostAuthRedirect, getRouteFromLocationState, normalizeAuthUser } from '../../utils/auth';
+import { toUserFriendlyError } from '../../utils/userFriendlyError';
 
 const registerSchema = z.object({
   displayName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -90,7 +91,7 @@ export default function RegisterPage() {
       success('Account created successfully!');
       navigate(getPostAuthRedirect(authUser, from), { replace: true });
     },
-    onError: (err: any) => setErrorMsg(err.response?.data?.message || 'Registration failed. Please try again.'),
+    onError: (err: any) => setErrorMsg(toUserFriendlyError(err, 'Registration failed. Please check your details and try again.')),
   });
 
   const googleLogin = useGoogleLogin({
@@ -110,7 +111,7 @@ export default function RegisterPage() {
         navigate(getPostAuthRedirect(authUser, from), { replace: true });
       } catch (err: any) {
         error('Google registration failed. Please try again.');
-        setErrorMsg(err.response?.data?.message || 'OAuth registration failed');
+        setErrorMsg(toUserFriendlyError(err, 'Registration failed. Please try again.'));
       } finally {
         setIsOAuthLoading(false);
       }
@@ -202,7 +203,7 @@ export default function RegisterPage() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => error('Please set VITE_GOOGLE_CLIENT_ID in your .env file')}
+                  onClick={() => error('Google sign-up is not available right now. Please use email registration.')}
                   className="flex min-h-[42px] w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-xs sm:text-sm font-black text-gray-500 opacity-60 grayscale"
                 >
                   <GoogleIcon />
