@@ -32,6 +32,7 @@ const QUICK_LINKS = [
   { to: '/products', label: 'All Products' },
   { to: '/products?category=Electronics', label: 'Electronics' },
   { to: '/products?category=Vehicles', label: 'Vehicles' },
+  { to: '/blog', label: 'Blog & Tips' },
   { to: '/about', label: 'About Us' },
 ];
 

@@ -92,15 +92,12 @@ export function CartDrawer() {
                       className="flex gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-colors"
                     >
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-100 bg-white">
-                        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#eefaf3] to-white text-[#1a8a4a]">
-                          <Package className="h-6 w-6 opacity-70" />
-                        </div>
                         <img
-                          src={item.img || ''}
+                          src={item.img || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=300&auto=format&fit=crop'}
                           alt={item.model}
-                          className="relative z-10 h-full w-full object-contain p-1.5"
+                          className="h-full w-full object-cover"
                           onError={(event) => {
-                            event.currentTarget.style.display = 'none';
+                            event.currentTarget.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=300&auto=format&fit=crop';
                           }}
                         />
                       </div>

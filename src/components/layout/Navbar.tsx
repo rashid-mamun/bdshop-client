@@ -101,7 +101,14 @@ export function Navbar() {
                 onClick={() => navigate(`/products/${product._id}`)}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50"
               >
-                <img src={product.img} alt={product.model} className="h-10 w-10 rounded-lg bg-gray-50 object-contain" />
+                <img
+                  src={product.img || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=200&auto=format&fit=crop'}
+                  alt={product.model}
+                  className="h-10 w-10 rounded-lg bg-gray-50 object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=200&auto=format&fit=crop';
+                  }}
+                />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-bold text-gray-900">{product.model}</span>
                   <span className="text-xs font-semibold text-[#1a8a4a]">৳{product.price?.toLocaleString()}</span>
