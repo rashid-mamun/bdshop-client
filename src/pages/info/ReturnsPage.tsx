@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ArrowRight,
   CheckCircle,
   ChevronDown,
   ChevronUp,
   CreditCard,
+  Loader2,
   PackageX,
   ShieldCheck,
   Truck,
   Upload,
+  X,
 } from 'lucide-react';
 import apiClient from '../../services/apiClient';
 import { useToast } from '../../hooks/useToast';
@@ -33,17 +35,46 @@ export default function ReturnsPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     orderId: '',
     email: '',
     itemScope: '',
     reason: '',
     details: '',
+    imageUrl: '',
   });
   const { success, error: toastError } = useToast();
 
   const updateForm = (field: keyof typeof form, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toastError('Image must be under 5MB');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('image', file);
+    setUploadingPhoto(true);
+    try {
+      const res = await apiClient.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data.data?.url || res.data.data?.secure_url;
+      if (url) {
+        setForm((prev) => ({ ...prev, imageUrl: url }));
+        success('Photo attached to return request');
+      }
+    } catch (err: any) {
+      toastError(err.response?.data?.message || err.response?.data?.error || 'Photo upload failed');
+    } finally {
+      setUploadingPhoto(false);
+    }
   };
 
   const handleReturnSubmit = async (event: React.FormEvent) => {
@@ -53,7 +84,7 @@ export default function ReturnsPage() {
       await apiClient.post('/public/returns', form);
       setSubmitted(true);
       success('Return request submitted.');
-      setForm({ orderId: '', email: '', itemScope: '', reason: '', details: '' });
+      setForm({ orderId: '', email: '', itemScope: '', reason: '', details: '', imageUrl: '' });
     } catch (err: any) {
       toastError(err.response?.data?.error || 'Return request failed.');
     } finally {
@@ -194,7 +225,7 @@ export default function ReturnsPage() {
               <div className="grid gap-5 md:grid-cols-2">
                 <label className="block">
                   <span className="mb-2 block text-[15px] font-black text-gray-950">Order ID</span>
-                  <input type="text" required value={form.orderId} onChange={(event) => updateForm('orderId', event.target.value)} className={InputClass} placeholder="Mongo order ID" />
+                  <input type="text" required value={form.orderId} onChange={(event) => updateForm('orderId', event.target.value)} className={InputClass} placeholder="BDS order number or order ID" />
                 </label>
                 <label className="block">
                   <span className="mb-2 block text-[15px] font-black text-gray-950">Email Address</span>
@@ -236,16 +267,55 @@ export default function ReturnsPage() {
                 <textarea rows={4} value={form.details} onChange={(event) => updateForm('details', event.target.value)} className={`${InputClass} h-36 resize-y py-4`} placeholder="Please provide any additional information..." />
               </label>
 
-              <label className="block">
-                <span className="mb-2 block text-[15px] font-black text-gray-950">Upload Photo <span className="font-semibold text-gray-500">(Optional)</span></span>
-                <div className="flex min-h-[136px] cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#1a8a4a]/30 bg-[#f8fbf9] px-4 text-center transition hover:border-[#1a8a4a]/50 hover:bg-[#eef8f3]">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#1a8a4a] shadow-sm ring-1 ring-[#1a8a4a]/10">
-                    <Upload className="h-6 w-6" />
-                  </span>
-                  <p className="mt-2 text-sm font-bold text-gray-600">Click to upload or drag and drop</p>
-                  <p className="mt-1 text-xs font-semibold text-gray-400">PNG, JPG up to 5MB</p>
-                </div>
-              </label>
+              <div>
+                <span className="mb-2 block text-[15px] font-black text-gray-950">
+                  Upload Photo <span className="font-semibold text-gray-500">(Optional)</span>
+                </span>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                />
+                {form.imageUrl ? (
+                  <div className="relative flex items-center gap-4 rounded-2xl border border-gray-100 bg-[#f8fbf9] p-4">
+                    <img
+                      src={form.imageUrl}
+                      alt="Return photo"
+                      className="h-20 w-20 rounded-xl object-cover border border-gray-200"
+                    />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-gray-800">Photo Attached</p>
+                      <p className="text-[11px] text-gray-400">Ready to submit with return</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm((prev) => ({ ...prev, imageUrl: '' }))}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-gray-400 shadow-sm hover:text-red-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex min-h-[136px] cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[#1a8a4a]/30 bg-[#f8fbf9] px-4 text-center transition hover:border-[#1a8a4a]/50 hover:bg-[#eef8f3]"
+                  >
+                    {uploadingPhoto ? (
+                      <Loader2 className="h-8 w-8 animate-spin text-[#1a8a4a]" />
+                    ) : (
+                      <>
+                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#1a8a4a] shadow-sm ring-1 ring-[#1a8a4a]/10">
+                          <Upload className="h-6 w-6" />
+                        </span>
+                        <p className="mt-2 text-sm font-bold text-gray-600">Click to upload photo</p>
+                        <p className="mt-1 text-xs font-semibold text-gray-400">PNG, JPG up to 5MB</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <button type="submit" disabled={submitting} className="group mx-auto flex min-h-[56px] w-full items-center justify-center gap-3 rounded-2xl bg-[#1a8a4a] px-7 text-base font-black text-white shadow-[0_14px_30px_rgba(26,138,74,0.22)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#157a3f] hover:shadow-[0_18px_36px_rgba(26,138,74,0.28)] active:translate-y-0 active:scale-[0.99] disabled:opacity-60 sm:w-auto sm:min-w-[340px]">
                 <span>{submitting ? 'Submitting...' : 'Submit Return Request'}</span>

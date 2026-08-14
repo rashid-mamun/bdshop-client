@@ -123,7 +123,7 @@ export default function OrderHistoryPage() {
                     return (
                       <tr key={order._id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-5">
-                          <span className="font-bold text-[#1a1a1a]">{order._id.substring(0, 10).toUpperCase()}</span>
+                          <span className="font-bold text-[#1a1a1a]">{order.orderNumber || order._id.substring(0, 10).toUpperCase()}</span>
                         </td>
                         <td className="px-6 py-5 text-sm text-gray-500">
                           {new Date(order.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
@@ -143,7 +143,7 @@ export default function OrderHistoryPage() {
                         </td>
                         <td className="px-6 py-5 text-right">
                           <button 
-                            onClick={() => navigate('/track-order')}
+                            onClick={() => navigate(`/track-order?orderId=${encodeURIComponent(order.orderNumber || order._id)}&email=${encodeURIComponent(order.email)}`)}
                             className="inline-flex items-center gap-1 text-sm font-bold text-[#1a8a4a] hover:text-[#157a3f] transition-colors"
                           >
                             View <ChevronRight className="h-4 w-4" />

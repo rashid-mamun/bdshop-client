@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Package, Search, Clock, Truck, Home } from 'lucide-react';
+import { Package, PackageCheck, Search, Clock, Truck, Home } from 'lucide-react';
 import apiClient from '../../services/apiClient';
 import { useToast } from '../../hooks/useToast';
 import { formatBDT } from '../../utils/currency';
@@ -8,13 +8,13 @@ import { toUserFriendlyError } from '../../utils/userFriendlyError';
 
 const STATUS_STEPS = [
   { status: 'pending', title: 'Order placed', icon: Package },
+  { status: 'confirmed', title: 'Confirmed', icon: PackageCheck },
   { status: 'processing', title: 'Processing', icon: Clock },
   { status: 'shipped', title: 'Shipped', icon: Truck },
   { status: 'delivered', title: 'Delivered', icon: Home },
 ];
 
 const statusIndex = (status: string) => {
-  if (status === 'confirmed') return 0;
   if (status === 'cancelled') return -1;
   return STATUS_STEPS.findIndex((step) => step.status === status);
 };

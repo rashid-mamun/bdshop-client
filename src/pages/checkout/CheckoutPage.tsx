@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -12,7 +12,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
 import { formatBDT } from '../../utils/currency';
 import { toUserFriendlyError } from '../../utils/userFriendlyError';
-import { CheckCircle, Package, CreditCard, MapPin, Tag, ShoppingBag, Lock, ShieldCheck, Truck, Banknote } from 'lucide-react';
+import { CheckCircle, CheckCircle2, ArrowLeft, Package, CreditCard, MapPin, Tag, ShoppingBag, Lock, ShieldCheck, Truck, Banknote } from 'lucide-react';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
@@ -56,7 +56,7 @@ type CheckoutQuote = {
   };
 };
 
-/* â”€â”€â”€ Stripe payment form â”€â”€â”€ */
+/* Stripe payment form */
 function StripePaymentForm({ orderData }: { orderData: any }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -210,15 +210,14 @@ function StripePaymentForm({ orderData }: { orderData: any }) {
         {processing || mutation.isPending ? 'Processing...' : `Pay ${formatBDT(orderData.finalTotal)}`}
       </button>
       <p className="text-center text-xs text-gray-400">
-        Test card: 4242 4242 4242 4242 Â· Any future date Â· Any 3-digit CVC
+        Test card: 4242 4242 4242 4242 · Any future date · Any 3-digit CVC
       </p>
     </form>
   );
 }
 
-/* â”€â”€â”€ Step indicator â”€â”€â”€ */
+/* Step indicator */
 const STEPS = [
-  { label: 'Cart', icon: ShoppingBag },
   { label: 'Shipping', icon: MapPin },
   { label: 'Payment', icon: CreditCard },
 ];
@@ -257,20 +256,20 @@ function StepBar({ step }: { step: number }) {
   );
 }
 
-/* â”€â”€â”€ Input helper â”€â”€â”€ */
+/* Input helper */
 function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">{label}</label>
       {children}
-      {error && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">âš  {error}</p>}
+      {error && <p className="text-xs text-red-500 mt-1.5 flex items-center gap-1">⚠ {error}</p>}
     </div>
   );
 }
 
 const inputCls = 'w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1a8a4a]/30 focus:border-[#1a8a4a] transition-all bg-white';
 
-/* â”€â”€â”€ Main page â”€â”€â”€ */
+/* Main page */
 export default function CheckoutPage() {
   const [step, setStep] = useState(1);
   const [shippingData, setShippingData] = useState<ShippingFormValues | null>(null);
@@ -283,8 +282,17 @@ export default function CheckoutPage() {
   const { clearCart } = useCartStore();
   const navigate = useNavigate();
   const { success, error: toastError } = useToast();
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const { data: addresses = [] } = useQuery<any[]>({
+    queryKey: ['user-addresses', user?.email],
+    queryFn: async () => {
+      const res = await apiClient.get('/addresses');
+      return res.data?.data || [];
+    },
+    enabled: !!user,
+  });
 
-  const { register, handleSubmit, getValues, formState: { errors } } = useForm<ShippingFormValues>({
+  const { register, handleSubmit, getValues, setValue, formState: { errors } } = useForm<ShippingFormValues>({
     resolver: zodResolver(shippingSchema),
     defaultValues: { 
       email: user?.email || '',
@@ -294,6 +302,31 @@ export default function CheckoutPage() {
       division: user?.division || '',
     },
   });
+
+  useEffect(() => {
+    if (addresses.length > 0 && !selectedAddressId) {
+      const defaultAddr = addresses.find((a: any) => a.isDefault) || addresses[0];
+      if (defaultAddr) {
+        setSelectedAddressId(defaultAddr._id);
+        setValue('fullName', defaultAddr.fullName || user?.displayName || '');
+        setValue('phone', defaultAddr.phone || user?.phone || '');
+        setValue('street', defaultAddr.street || '');
+        setValue('district', defaultAddr.district || '');
+        setValue('division', defaultAddr.division || '');
+        setValue('postalCode', defaultAddr.postalCode || '');
+      }
+    }
+  }, [addresses, selectedAddressId, setValue, user]);
+
+  const selectAddress = (addr: any) => {
+    setSelectedAddressId(addr._id);
+    setValue('fullName', addr.fullName || user?.displayName || '');
+    setValue('phone', addr.phone || user?.phone || '');
+    setValue('street', addr.street || '');
+    setValue('district', addr.district || '');
+    setValue('division', addr.division || '');
+    setValue('postalCode', addr.postalCode || '');
+  };
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const displayTotals = serverQuote?.totals || {
@@ -390,46 +423,120 @@ export default function CheckoutPage() {
   const summaryItems = items.map((item) => {
     const quotedItem = serverQuote?.items.find((quoteItem) => quoteItem.serviceId === item._id);
     return {
-      ...item,
-      model: quotedItem?.name || item.model,
+      _id: item._id,
+      name: item.name,
+      model: item.model,
+      img: item.img,
+      quantity: item.quantity,
       price: quotedItem?.price ?? item.price,
     };
   });
 
   return (
-    <div className="bg-[#f8f9fa] min-h-screen pb-20 md:pb-0">
-      <section className="border-b border-gray-100 bg-white">
-        <div className="bd-container grid gap-5 py-6 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div>
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#1a8a4a]/15 bg-[#e8f5ee] px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#1a8a4a]">
-              <Lock className="h-4 w-4" />
-              Secure checkout
+    <div className="bg-[#f8f9fa] min-h-screen py-10 px-4">
+      <div className="bd-container max-w-6xl">
+        <div className="mb-8">
+          <Link to="/cart" className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-[#1a8a4a] transition-colors mb-4">
+            <ArrowLeft className="h-4 w-4" /> Back to Cart
+          </Link>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-[#1a1a1a] tracking-tight">Checkout</h1>
+              <p className="text-sm font-medium text-gray-500 mt-1">Review your products, confirm your delivery address, and pay safely.</p>
             </div>
-            <h1 className="text-3xl font-black tracking-tight text-gray-950 md:text-4xl">Complete your order</h1>
-            <p className="mt-2 max-w-xl text-sm font-medium text-gray-500">
-              Review delivery, payment and order total before placing your order.
-            </p>
+            <div className="inline-flex items-center gap-2 self-start rounded-full bg-[#e8f5ee] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-[#1a8a4a]">
+              <Lock className="h-3.5 w-3.5" /> 256-bit encrypted checkout
+            </div>
           </div>
-          <StepBar step={step} />
         </div>
-      </section>
 
-      <div className="bd-container py-6 md:py-8">
+        {/* Checkout Steps */}
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {[
+            { n: 1, title: 'Delivery Details', subtitle: 'Address & Contact' },
+            { n: 2, title: 'Payment', subtitle: 'Card or Cash on Delivery' },
+          ].map((s) => (
+            <div
+              key={s.n}
+              className={`rounded-2xl p-4 border transition-all ${
+                step === s.n
+                  ? 'border-[#1a8a4a] bg-white shadow-sm'
+                  : step > s.n
+                  ? 'border-gray-200 bg-white/70'
+                  : 'border-gray-200 bg-white/40'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${
+                    step === s.n
+                      ? 'bg-[#1a8a4a] text-white shadow-md shadow-[#1a8a4a]/20'
+                      : step > s.n
+                      ? 'bg-[#e8f5ee] text-[#1a8a4a]'
+                      : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  {step > s.n ? <CheckCircle2 className="h-5 w-5" /> : s.n}
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-[#1a1a1a]">{s.title}</p>
+                  <p className="text-xs text-gray-400 font-medium">{s.subtitle}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-          {/* â”€â”€ Left: Form â”€â”€ */}
-          <div className="flex-1">
-
+        <div className="grid lg:grid-cols-12 gap-8">
+          {/* Left Column: Form / Payment */}
+          <div className="lg:col-span-7 space-y-6">
             {/* Step 1: Shipping */}
             {step === 1 && (
               <div className="overflow-hidden bg-white rounded-3xl border border-gray-100 shadow-sm">
                 <div className="border-b border-gray-100 bg-gradient-to-r from-[#f8fbf9] to-white p-6 md:p-8">
-                  <h2 className="font-black text-[#1a1a1a] text-2xl flex items-center gap-2">
-                    <MapPin className="h-6 w-6 text-[#1a8a4a]" /> Delivery Details
-                  </h2>
-                  <p className="mt-1 text-sm font-medium text-gray-500">Tell us where to deliver your order.</p>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="font-black text-[#1a1a1a] text-2xl flex items-center gap-2">
+                        <MapPin className="h-6 w-6 text-[#1a8a4a]" /> Delivery Details
+                      </h2>
+                      <p className="mt-1 text-sm font-medium text-gray-500">Provide shipping details for prompt and accurate delivery.</p>
+                    </div>
+                    {user && (
+                      <div className="inline-flex w-fit items-center gap-2 rounded-full bg-[#e8f5ee] px-3 py-1 text-xs font-black text-[#1a8a4a]">
+                        <CheckCircle2 className="h-4 w-4" /> Signed in as {user.displayName || user.email}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="p-6 md:p-8">
+                {user && addresses.length > 0 && (
+                  <div className="mb-6 space-y-3">
+                    <p className="text-xs font-black uppercase tracking-wider text-gray-500">Saved Addresses</p>
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      {addresses.map((addr: any) => (
+                        <button
+                          key={addr._id}
+                          type="button"
+                          onClick={() => selectAddress(addr)}
+                          className={`rounded-2xl border p-3.5 text-left transition ${
+                            selectedAddressId === addr._id
+                              ? 'border-[#1a8a4a] bg-[#f8fbf9] ring-2 ring-[#1a8a4a]/20'
+                              : 'border-gray-200 bg-white hover:border-[#1a8a4a]/40'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-black uppercase text-gray-900">{addr.label || 'Address'}</span>
+                            {addr.isDefault && (
+                              <span className="rounded bg-[#e8f5ee] px-1.5 py-0.5 text-[10px] font-black text-[#1a8a4a]">Default</span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-xs font-bold text-gray-800 truncate">{addr.street}</p>
+                          <p className="text-[11px] text-gray-500">{addr.district}, {addr.division} {addr.postalCode}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <form id="shipping-form" onSubmit={handleSubmit(createQuote)} className="space-y-5">
                   {!user && (
                     <div className="rounded-2xl border border-green-100 bg-green-50 p-4">
@@ -569,7 +676,7 @@ export default function CheckoutPage() {
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2">
                         <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-xs font-bold text-gray-500">
-                          <Truck className="h-3.5 w-3.5 text-[#1a8a4a]" /> Delivery in 24â€“72 hrs
+                          <Truck className="h-3.5 w-3.5 text-[#1a8a4a]" /> Delivery in 24–72 hrs
                         </div>
                         <div className="flex items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-xs font-bold text-gray-500">
                           <ShieldCheck className="h-3.5 w-3.5 text-[#1a8a4a]" /> Buyer protected
@@ -590,14 +697,14 @@ export default function CheckoutPage() {
                     onClick={() => setStep(1)}
                     className="w-full py-3 text-sm font-semibold text-gray-500 hover:text-[#1a8a4a] transition-colors"
                   >
-                    â† Edit Shipping Details
+                    ← Edit Shipping Details
                   </button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* â”€â”€ Right: Order Summary â”€â”€ */}
+          {/* Right: Order Summary */}
           <div className="w-full shrink-0">
             <div className="overflow-hidden bg-white rounded-3xl border border-gray-100 shadow-sm sticky top-24">
               <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white p-6">
