@@ -90,9 +90,9 @@ export default function ForgotPasswordPage() {
                   If an account exists for <strong>{email}</strong>, you'll receive a password reset email shortly.
                 </p>
                 {devResetToken && (
-                  <p className="w-full rounded-xl bg-amber-50 p-3 text-xs font-semibold text-amber-700">
-                    Development reset token: {devResetToken}
-                  </p>
+                  <Link to={`/reset-password?token=${encodeURIComponent(devResetToken)}`} className="w-full rounded-xl bg-amber-50 p-3 text-xs font-black text-amber-700 hover:bg-amber-100">
+                    Continue with the development reset link
+                  </Link>
                 )}
                 <Link
                   to="/login"

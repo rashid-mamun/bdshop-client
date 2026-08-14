@@ -22,6 +22,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
 import { getPostAuthRedirect, getRouteFromLocationState, normalizeAuthUser } from '../../utils/auth';
 import { toUserFriendlyError } from '../../utils/userFriendlyError';
+import { isGoogleAuthConfigured } from '../../config/runtime';
 
 const registerSchema = z.object({
   displayName: z.string().min(2, { message: 'Name must be at least 2 characters' }),
@@ -41,6 +42,35 @@ const GoogleIcon = () => (
     <path fill="none" d="M0 0h48v48H0z" />
   </svg>
 );
+
+function GoogleSignUpButton({
+  onToken,
+  onFailure,
+  disabled,
+  isLoading,
+}: {
+  onToken: (token: string) => void;
+  onFailure: () => void;
+  disabled: boolean;
+  isLoading: boolean;
+}) {
+  const googleLogin = useGoogleLogin({
+    onSuccess: (tokenResponse) => onToken(tokenResponse.access_token),
+    onError: onFailure,
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={() => googleLogin()}
+      disabled={disabled || isLoading}
+      className="flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-xs sm:text-sm font-black text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 2xl:min-h-[52px]"
+    >
+      {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-gray-500" /> : <GoogleIcon />}
+      Sign up with Google
+    </button>
+  );
+}
 
 export default function RegisterPage() {
   const [errorMsg, setErrorMsg] = useState('');
@@ -94,30 +124,27 @@ export default function RegisterPage() {
     onError: (err: any) => setErrorMsg(toUserFriendlyError(err, 'Registration failed. Please check your details and try again.')),
   });
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      setIsOAuthLoading(true);
-      setErrorMsg('');
-      try {
-        const res = await apiClient.post('/auth/google', { token: tokenResponse.access_token });
-        const authUser = normalizeAuthUser(res.data);
-        if (!authUser) {
-          setErrorMsg('Account created, but account data could not be loaded. Please sign in.');
-          return;
-        }
-
-        setUser(authUser);
-        success('Account created successfully with Google!');
-        navigate(getPostAuthRedirect(authUser, from), { replace: true });
-      } catch (err: any) {
-        error('Google registration failed. Please try again.');
-        setErrorMsg(toUserFriendlyError(err, 'Registration failed. Please try again.'));
-      } finally {
-        setIsOAuthLoading(false);
+  const handleGoogleToken = async (token: string) => {
+    setIsOAuthLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await apiClient.post('/auth/google', { token });
+      const authUser = normalizeAuthUser(res.data);
+      if (!authUser) {
+        setErrorMsg('Account created, but account data could not be loaded. Please sign in.');
+        return;
       }
-    },
-    onError: () => error('Google registration failed. Please try again.'),
-  });
+
+      setUser(authUser);
+      success('Account created successfully with Google!');
+      navigate(getPostAuthRedirect(authUser, from), { replace: true });
+    } catch (err: any) {
+      error('Google registration failed. Please try again.');
+      setErrorMsg(toUserFriendlyError(err, 'Registration failed. Please try again.'));
+    } finally {
+      setIsOAuthLoading(false);
+    }
+  };
 
   const onSubmit = (data: RegisterFormValues) => {
     setErrorMsg('');
@@ -190,24 +217,22 @@ export default function RegisterPage() {
           <div className="p-4 2xl:p-8">
             {/* Google OAuth */}
             <div className="mb-3">
-              {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
-                <button
-                  type="button"
-                  onClick={() => googleLogin()}
-                  disabled={mutation.isPending || isOAuthLoading}
-                  className="flex min-h-[42px] w-full items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-xs sm:text-sm font-black text-gray-700 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 2xl:min-h-[52px]"
-                >
-                  {isOAuthLoading ? <Loader2 className="h-4 w-4 animate-spin text-gray-500" /> : <GoogleIcon />}
-                  Sign up with Google
-                </button>
+              {isGoogleAuthConfigured ? (
+                <GoogleSignUpButton
+                  onToken={handleGoogleToken}
+                  onFailure={() => error('Google registration failed. Please try again.')}
+                  disabled={mutation.isPending}
+                  isLoading={isOAuthLoading}
+                />
               ) : (
                 <button
                   type="button"
-                  onClick={() => error('Google sign-up is not available right now. Please use email registration.')}
+                  disabled
+                  title="Set a valid VITE_GOOGLE_CLIENT_ID to enable Google sign-up"
                   className="flex min-h-[42px] w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-xs sm:text-sm font-black text-gray-500 opacity-60 grayscale"
                 >
                   <GoogleIcon />
-                  Sign up with Google
+                  Google sign-up unavailable
                 </button>
               )}
             </div>
@@ -302,8 +327,9 @@ export default function RegisterPage() {
               </div>
 
               {errorMsg && (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-xs sm:text-sm font-bold text-red-600">
-                  {errorMsg}
+                <div className="flex items-center gap-2.5 rounded-2xl border border-red-200 bg-red-50/90 px-4 py-3 text-xs sm:text-sm font-bold text-red-700 shadow-sm animate-in fade-in duration-200">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">!</div>
+                  <span className="leading-snug">{errorMsg}</span>
                 </div>
               )}
 

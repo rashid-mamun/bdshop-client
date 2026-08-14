@@ -19,6 +19,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useToast } from '../../hooks/useToast';
 import { getPostAuthRedirect, getRouteFromLocationState, normalizeAuthUser } from '../../utils/auth';
 import { toUserFriendlyError } from '../../utils/userFriendlyError';
+import { isGoogleAuthConfigured } from '../../config/runtime';
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -167,16 +168,17 @@ export default function LoginPage() {
 
               <div className="p-4 2xl:p-8">
                 <div className="mb-3">
-                  {import.meta.env.VITE_GOOGLE_CLIENT_ID ? (
+                  {isGoogleAuthConfigured ? (
                     <GoogleLoginButton handleOAuthSuccess={handleOAuthSuccess} isOAuthLoading={isOAuthLoading} isDisabled={mutation.isPending} />
                   ) : (
                     <button
                       type="button"
-                      onClick={() => error('Google sign-in is not available right now. Please use email login.')}
+                      disabled
+                      title="Set a valid VITE_GOOGLE_CLIENT_ID to enable Google sign-in"
                       className="flex min-h-[42px] w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-xs sm:text-sm font-black text-gray-500 opacity-60 grayscale"
                     >
                       <GoogleIcon />
-                      Continue with Google
+                      Google sign-in unavailable
                     </button>
                   )}
                 </div>
@@ -230,8 +232,9 @@ export default function LoginPage() {
                   </div>
 
                   {errorMsg && (
-                    <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-xs sm:text-sm font-bold text-red-600">
-                      {errorMsg}
+                    <div className="flex items-center gap-2.5 rounded-2xl border border-red-200 bg-red-50/90 px-4 py-3 text-xs sm:text-sm font-bold text-red-700 shadow-sm animate-in fade-in duration-200">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">!</div>
+                      <span className="leading-snug">{errorMsg}</span>
                     </div>
                   )}
 
