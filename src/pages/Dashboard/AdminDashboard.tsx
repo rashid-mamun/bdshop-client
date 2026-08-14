@@ -56,6 +56,13 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
     description: initial?.description || '',
     config: initial?.config || '',
     madeIn: initial?.madeIn || '',
+    originalPrice: initial?.originalPrice || '',
+    stock: initial?.stock ?? 0,
+    discountPercent: initial?.discountPercent || '',
+    isFeatured: Boolean(initial?.isFeatured),
+    isFlashDeal: Boolean(initial?.isFlashDeal),
+    isNewArrival: Boolean(initial?.isNewArrival),
+    tags: Array.isArray(initial?.tags) ? initial.tags.join(', ') : '',
     img: initial?.img || '',
     imgPublicId: initial?.imgPublicId || '',
     imgStorage: initial?.imgStorage || '',
@@ -112,6 +119,10 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
       imgPublicId: form.imgPublicId,
       imgStorage: form.imgStorage,
       price: Number(form.price),
+      originalPrice: form.originalPrice === '' ? undefined : Number(form.originalPrice),
+      stock: Number(form.stock),
+      discountPercent: form.discountPercent === '' ? undefined : Number(form.discountPercent),
+      tags: String(form.tags).split(',').map((tag) => tag.trim()).filter(Boolean),
     });
   };
 
@@ -162,6 +173,34 @@ function ProductForm({ initial, onSave, onCancel, isPending }: {
         <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Price (৳)</label>
         <input type="number" value={form.price} onChange={(e) => set('price', e.target.value)} className={inputCls} min="0" />
       </div>
+      <div>
+        <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Original Price (optional)</label>
+        <input type="number" value={form.originalPrice} onChange={(e) => set('originalPrice', e.target.value)} className={inputCls} min="0" />
+      </div>
+      <div>
+        <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Stock</label>
+        <input type="number" value={form.stock} onChange={(e) => set('stock', e.target.value)} className={inputCls} min="0" step="1" />
+      </div>
+      <div>
+        <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Discount % (optional)</label>
+        <input type="number" value={form.discountPercent} onChange={(e) => set('discountPercent', e.target.value)} className={inputCls} min="0" max="100" />
+      </div>
+      <div className="md:col-span-2">
+        <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Tags (comma separated)</label>
+        <input value={form.tags} onChange={(e) => set('tags', e.target.value)} className={inputCls} placeholder="audio, wireless, bestseller" />
+      </div>
+      <div className="md:col-span-2 grid gap-3 sm:grid-cols-3">
+        {([
+          ['isFeatured', 'Featured product'],
+          ['isFlashDeal', 'Flash deal'],
+          ['isNewArrival', 'New arrival'],
+        ] as const).map(([key, label]) => (
+          <label key={key} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-bold text-gray-700">
+            <input type="checkbox" checked={form[key]} onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.checked }))} className="h-4 w-4 accent-[#1a8a4a]" />
+            {label}
+          </label>
+        ))}
+      </div>
       <div className="md:col-span-2">
         <label className="text-sm font-semibold text-[#1a1a1a] block mb-1.5">Description</label>
         <textarea value={form.description} onChange={(e) => set('description', e.target.value)} className={inputCls} rows={3} />
@@ -210,10 +249,26 @@ export default function AdminDashboard() {
   };
 
   // Queries
+  const { data: summaryStats } = useQuery({
+    queryKey: ['admin-order-stats'],
+    queryFn: async () => {
+      const res = await apiClient.get('/orders/stats/summary');
+      return res.data.data;
+    },
+  });
+
+  const { data: serviceStats } = useQuery({
+    queryKey: ['admin-service-stats'],
+    queryFn: async () => {
+      const res = await apiClient.get('/services/stats/overview');
+      return res.data.data;
+    },
+  });
+
   const { data: ordersData, isLoading: ordersLoading } = useQuery({
     queryKey: ['admin-orders'],
     queryFn: async () => {
-      const res = await apiClient.get('/orders');
+      const res = await apiClient.get('/orders', { params: { limit: '50' } });
       return res.data.data.orders as any[];
     },
   });
@@ -229,7 +284,7 @@ export default function AdminDashboard() {
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      const res = await apiClient.get('/users');
+      const res = await apiClient.get('/users', { params: { limit: '100' } });
       return res.data.data.users as any[];
     },
   });
@@ -237,7 +292,7 @@ export default function AdminDashboard() {
   // Mutations
   const createProductMutation = useMutation({
     mutationFn: (data: any) => apiClient.post('/services', data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); setShowProductForm(false); success('Product created!'); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); queryClient.invalidateQueries({ queryKey: ['admin-service-stats'] }); setShowProductForm(false); success('Product created!'); },
     onError: (e: any) => toastError(toUserFriendlyError(e, 'Product could not be created. Please try again.')),
   });
 
@@ -249,20 +304,20 @@ export default function AdminDashboard() {
 
   const deleteProductMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/services/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); success('Product deleted'); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-products'] }); queryClient.invalidateQueries({ queryKey: ['admin-service-stats'] }); success('Product deleted'); },
     onError: () => toastError('Delete failed'),
   });
 
   const updateOrderMutation = useMutation({
     mutationFn: ({ id, status, paymentStatus }: { id: string; status?: string; paymentStatus?: string }) => apiClient.put(`/orders/${id}`, { status, paymentStatus }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-orders'] }); success('Order updated!'); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-orders'] }); queryClient.invalidateQueries({ queryKey: ['admin-order-stats'] }); success('Order updated!'); },
     onError: (e: any) => toastError(toUserFriendlyError(e, 'Order could not be updated. Please try again.')),
   });
 
-  const makeAdminMutation = useMutation({
-    mutationFn: (email: string) => apiClient.put('/users/admin', { email }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); success('User promoted to admin!'); },
-    onError: () => toastError('Failed to update role'),
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ email, role }: { email: string; role: string }) => apiClient.put('/users/role', { email, role }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-users'] }); success('User role updated!'); },
+    onError: (e: any) => toastError(toUserFriendlyError(e, 'Failed to update user role')),
   });
 
   const deactivateUserMutation = useMutation({
@@ -272,9 +327,9 @@ export default function AdminDashboard() {
   });
 
   // Analytics
-  const totalRevenue = ordersData?.filter((o) => o.paymentStatus === 'paid').reduce((s: number, o: any) => s + (o.total || 0), 0) || 0;
-  const totalOrders = ordersData?.length || 0;
-  const totalProducts = productsData?.length || 0;
+  const totalRevenue = summaryStats?.totalRevenue ?? (ordersData?.filter((o) => o.paymentStatus === 'paid').reduce((s: number, o: any) => s + (o.total || 0), 0) || 0);
+  const totalOrders = summaryStats?.totalOrders ?? (ordersData?.length || 0);
+  const totalProducts = serviceStats?.totalServices ?? (productsData?.length || 0);
   const totalCustomers = usersData?.length || 0;
 
   const monthBuckets = Array.from({ length: 6 }, (_, index) => {
@@ -734,13 +789,21 @@ export default function AdminDashboard() {
                                 </span>
                               ) : (
                                 <>
-                              {u.role !== 'admin' && u.role !== 'superadmin' && (
+                              {u.role !== 'admin' && u.role !== 'superadmin' ? (
                                 <button
-                                  onClick={() => makeAdminMutation.mutate(u.email)}
-                                  disabled={makeAdminMutation.isPending}
+                                  onClick={() => updateRoleMutation.mutate({ email: u.email, role: 'admin' })}
+                                  disabled={updateRoleMutation.isPending}
                                   className="min-h-[34px] rounded-xl border border-purple-200 px-3 text-xs font-black text-purple-600 transition-colors hover:bg-purple-50 disabled:opacity-50"
                                 >
                                   Make Admin
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => updateRoleMutation.mutate({ email: u.email, role: 'user' })}
+                                  disabled={updateRoleMutation.isPending}
+                                  className="min-h-[34px] rounded-xl border border-gray-200 px-3 text-xs font-black text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50"
+                                >
+                                  Demote to User
                                 </button>
                               )}
                               {u.isActive ? (
