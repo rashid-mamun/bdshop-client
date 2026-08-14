@@ -15,6 +15,7 @@ import { isAdminUser } from './utils/auth';
 const LoginPage = lazy(() => import('./pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('./pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const HomePage = lazy(() => import('./pages/HomePage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
@@ -31,6 +32,8 @@ const HelpCenterPage = lazy(() => import('./pages/info/HelpCenterPage'));
 const PrivacyPolicyPage = lazy(() => import('./pages/info/PrivacyPolicyPage'));
 const TermsPage = lazy(() => import('./pages/info/TermsPage'));
 const CookiePolicyPage = lazy(() => import('./pages/info/CookiePolicyPage'));
+const BlogPage = lazy(() => import('./pages/blog/BlogPage'));
+const BlogDetailPage = lazy(() => import('./pages/blog/BlogDetailPage'));
 
 const PageFallback = () => (
   <div className="min-h-[55vh] bg-[#f8f9fa] px-6 py-12">
@@ -136,6 +139,7 @@ const router = createBrowserRouter([
           { path: 'login', element: <LoginPage /> },
           { path: 'register', element: <RegisterPage /> },
           { path: 'forgot-password', element: <ForgotPasswordPage /> },
+          { path: 'reset-password', element: <ResetPasswordPage /> },
         ],
       },
       /* Main routes — full layout with Navbar + Footer */
@@ -163,6 +167,8 @@ const router = createBrowserRouter([
           { path: 'privacy-policy', element: <PrivacyPolicyPage /> },
           { path: 'terms', element: <TermsPage /> },
           { path: 'cookie-policy', element: <CookiePolicyPage /> },
+          { path: 'blog', element: <BlogPage /> },
+          { path: 'blog/:id', element: <BlogDetailPage /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },
