@@ -9,6 +9,7 @@ export interface Product {
   description?: string;
   category?: string;
   config?: string;
+  specifications?: Record<string, string>;
   madeIn?: string;
   date?: string;
   images?: string[];
@@ -23,4 +24,4 @@ export interface Product {
 }
 
 export type ProductPreview = Pick<Product, '_id' | 'name' | 'model' | 'price' | 'img'> &
-  Partial<Pick<Product, 'category' | 'originalPrice' | 'discountPercent' | 'stock' | 'averageRating' | 'reviewCount'>>;
+  Partial<Pick<Product, 'category' | 'originalPrice' | 'discountPercent' | 'stock' | 'averageRating' | 'reviewCount' | 'specifications'>>;

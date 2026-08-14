@@ -7,22 +7,11 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import {
   Search, SlidersHorizontal, LayoutGrid, List, ChevronLeft, ChevronRight,
-  Star, X, ChevronDown, ChevronUp, ShoppingCart, Package, ShieldCheck, Truck, BadgePercent
+  Star, X, ChevronDown, ChevronUp, ShoppingCart, Package, ShieldCheck, Truck, BadgePercent, BarChart3
 } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
+import { useCompareStore } from '../../store/useCompareStore';
 import { useToast } from '../../hooks/useToast';
-import type { Product } from '../../types/product';
-
-const CATALOG_FALLBACK_PRODUCTS: Product[] = [
-  { _id: 'demo-1', name: 'NovaTech', model: 'NovaBook Air 14 Pro', price: 89500, originalPrice: 104000, discountPercent: 14, img: '', description: 'Slim work laptop with vivid display and all-day battery life.', category: 'Electronics', averageRating: 4.8, reviewCount: 128, stock: 4 },
-  { _id: 'demo-2', name: 'SoundCore', model: 'Pulse ANC Wireless Headphones', price: 12500, originalPrice: 16500, discountPercent: 24, img: '', description: 'Noise-cancelling headphones tuned for travel and focus.', category: 'Accessories', averageRating: 4.7, reviewCount: 89, isNewArrival: true, stock: 9 },
-  { _id: 'demo-3', name: 'UrbanRide', model: 'Volt X Electric Scooter', price: 72500, originalPrice: 79000, discountPercent: 8, img: '', description: 'Daily commute scooter with long range and quick charging.', category: 'Vehicles', averageRating: 4.6, reviewCount: 54, stock: 3 },
-  { _id: 'demo-4', name: 'AeroFit', model: 'AeroFit Smart Watch S2', price: 8900, originalPrice: 12000, discountPercent: 26, img: '', description: 'Health tracking, calls, and a bright AMOLED display.', category: 'Electronics', averageRating: 4.9, reviewCount: 203, isNewArrival: true, stock: 12 },
-  { _id: 'demo-5', name: 'PixelMate', model: 'PixelMate 4K Action Camera', price: 21900, originalPrice: 26000, discountPercent: 16, img: '', description: 'Compact 4K action camera for travel and outdoor content.', category: 'Electronics', averageRating: 4.5, reviewCount: 77, stock: 6 },
-  { _id: 'demo-6', name: 'HomeHub', model: 'HomeHub Mini Speaker', price: 6400, originalPrice: 8200, discountPercent: 22, img: '', description: 'Room-filling smart speaker with deep bass and voice control.', category: 'Accessories', averageRating: 4.6, reviewCount: 64, isNewArrival: true, stock: 15 },
-  { _id: 'demo-7', name: 'DrivePro', model: 'DrivePro Dash Camera', price: 15900, originalPrice: 18900, discountPercent: 16, img: '', description: 'Wide angle recording, night vision, and emergency save.', category: 'Vehicles', averageRating: 4.4, reviewCount: 41, stock: 8 },
-  { _id: 'demo-8', name: 'ChargeMax', model: 'ChargeMax 65W GaN Charger', price: 3600, originalPrice: 4500, discountPercent: 20, img: '', description: 'Compact fast charger for phone, tablet, and laptop.', category: 'Accessories', averageRating: 4.8, reviewCount: 147, stock: 18 },
-];
 
 /* ─── Product skeleton card ──────────────────── */
 function ProductSkeleton() {
@@ -61,6 +50,18 @@ export default function ProductCatalogPage() {
   const [searchInput, setSearchInput] = useState(searchParams.get('search') || '');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { items: compareItems, removeItem: removeCompareItem } = useCompareStore();
+  const showCompareModal = searchParams.get('compare') === 'true';
+
+  useEffect(() => {
+    setSearchInput(searchParams.get('search') || '');
+  }, [searchParams]);
+
+  const closeCompareModal = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('compare');
+    setSearchParams(next);
+  };
 
   const { addItem } = useCartStore();
   const { success } = useToast();
@@ -86,13 +87,19 @@ export default function ProductCatalogPage() {
     ]);
   }, [minPrice, maxPrice]);
 
-  const setParam = (key: string, value: string) => {
+  const setParams = (updates: Record<string, string>) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (value) next.set(key, value); else next.delete(key);
-      if (key !== 'page') next.set('page', '1');
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value) next.set(key, value); else next.delete(key);
+      });
+      if (!('page' in updates)) next.set('page', '1');
       return next;
     });
+  };
+
+  const setParam = (key: string, value: string) => {
+    setParams({ [key]: value });
   };
 
   const clearAll = () => {
@@ -103,8 +110,10 @@ export default function ProductCatalogPage() {
 
   const handlePriceChangeComplete = (value: number | number[]) => {
     if (Array.isArray(value)) {
-      setParam('minPrice', String(value[0]));
-      setParam('maxPrice', String(value[1]));
+      setParams({
+        minPrice: value[0] > 0 ? String(value[0]) : '',
+        maxPrice: value[1] < 500000 ? String(value[1]) : '',
+      });
     }
   };
 
@@ -134,7 +143,7 @@ export default function ProductCatalogPage() {
 
   const hasActiveFilters = !!(search || category || sort || minPrice || maxPrice || ratingFilter || inStock);
   const apiProducts = (data?.services || []) as any[];
-  let products = apiProducts;
+  const products = apiProducts;
   const pagination = data?.pagination;
   const totalPages = pagination?.pages || 1;
   const totalCount = pagination?.total || products.length;
@@ -230,7 +239,7 @@ export default function ProductCatalogPage() {
           {[['0', '5000', 'Under ৳5K'], ['5000', '20000', '৳5K–৳20K'], ['20000', '50000', '৳20K–৳50K'], ['50000', '500000', '৳50K+']].map(([mn, mx, lbl]) => (
             <button
               key={lbl}
-              onClick={() => { setParam('minPrice', mn); setParam('maxPrice', mx); }}
+              onClick={() => setParams({ minPrice: mn, maxPrice: mx })}
               className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${minPrice === mn && maxPrice === mx ? 'bg-[#1a8a4a] text-white border-[#1a8a4a]' : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-[#1a8a4a] hover:text-[#1a8a4a]'}`}
             >
               {lbl}
@@ -285,20 +294,20 @@ export default function ProductCatalogPage() {
   return (
     <div className="bg-[#f8f9fa] min-h-screen pb-16 md:pb-0">
       <section className="border-b border-gray-100 bg-white">
-        <div className="bd-container grid gap-6 py-8 md:grid-cols-[1.25fr_0.75fr] md:py-10">
+        <div className="bd-container grid gap-6 py-6 md:grid-cols-[1.25fr_0.75fr] md:py-8">
           <div>
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[#1a8a4a]/15 bg-[#e8f5ee] px-3 py-1.5 text-xs font-black uppercase tracking-widest text-[#1a8a4a]">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-[#1a8a4a]/15 bg-[#e8f5ee] px-3 py-1 text-xs font-black uppercase tracking-widest text-[#1a8a4a]">
               <ShieldCheck className="h-4 w-4" />
               Verified marketplace
             </div>
-            <h1 className="max-w-[19rem] break-words text-3xl font-black leading-tight text-gray-950 sm:max-w-2xl md:text-5xl">
+            <h1 className="max-w-[19rem] break-words text-2xl font-black leading-tight text-gray-950 sm:max-w-2xl sm:text-3xl md:text-4xl">
               {category ? `${category} collection` : 'Shop products that feel worth the scroll'}
             </h1>
-            <p className="mt-3 max-w-[20rem] break-words text-sm leading-6 text-gray-500 sm:max-w-xl md:text-base">
+            <p className="mt-2.5 max-w-[20rem] break-words text-sm leading-relaxed text-gray-500 sm:max-w-xl">
               Compare curated products, filter by price and rating, and checkout with clear delivery and stock signals.
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-3 self-end">
+          <div className="grid grid-cols-3 gap-2.5 sm:gap-3 self-end">
             {[
               { icon: Package, label: 'Products', value: isLoading ? '...' : totalCount.toLocaleString() },
               { icon: Truck, label: 'Delivery', value: '24-72h' },
@@ -306,10 +315,10 @@ export default function ProductCatalogPage() {
             ].map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.label} className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                  <Icon className="h-5 w-5 text-[#1a8a4a]" />
-                  <p className="mt-4 text-lg font-black text-gray-950">{item.value}</p>
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-400">{item.label}</p>
+                <div key={item.label} className="rounded-2xl border border-gray-100 bg-gray-50 p-3 sm:p-4">
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-[#1a8a4a]" />
+                  <p className="mt-2.5 sm:mt-3 text-base sm:text-lg font-black text-gray-950">{item.value}</p>
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-gray-400">{item.label}</p>
                 </div>
               );
             })}
@@ -444,7 +453,7 @@ export default function ProductCatalogPage() {
                 {(minPrice || maxPrice) && (
                   <span className="flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full border border-amber-200">
                     ৳{(minPrice || '0')} - ৳{(maxPrice || '500000')}
-                    <button onClick={() => { setParam('minPrice', ''); setParam('maxPrice', ''); }} className="hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => setParams({ minPrice: '', maxPrice: '' })} className="hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
                   </span>
                 )}
                 {ratingFilter && (
@@ -458,7 +467,7 @@ export default function ProductCatalogPage() {
 
             {/* Product Grid / List */}
             {isLoading ? (
-              <div className={`grid gap-4 md:gap-6 ${viewMode === 'grid' ? 'grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
+              <div className={`grid gap-4 md:gap-5 ${viewMode === 'grid' ? 'grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 min-[1500px]:grid-cols-4' : 'grid-cols-1'}`}>
                 {Array.from({ length: 12 }).map((_, i) => <ProductSkeleton key={i} />)}
               </div>
             ) : products.length > 0 ? (
@@ -467,16 +476,13 @@ export default function ProductCatalogPage() {
                   <div className="space-y-4">
                     {products.map((p: any) => (
                       <div key={p._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-5 hover:shadow-md transition-shadow group">
-                        <div className="relative w-28 h-28 sm:w-40 sm:h-40 shrink-0 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center p-2">
-                          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#eefaf3] via-white to-[#f3f7ff] text-[#1a8a4a]">
-                            <Package className="h-10 w-10 opacity-70" />
-                          </div>
+                        <div className="relative w-28 h-28 sm:w-40 sm:h-40 shrink-0 bg-gray-50 rounded-xl overflow-hidden flex items-center justify-center">
                           <img
-                            src={p.img || ''}
+                            src={p.img || p.images?.[0] || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop'}
                             alt={p.model}
-                            className="relative z-10 max-w-full max-h-full object-contain mix-blend-multiply group-hover:scale-105 transition-transform"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             onError={(event) => {
-                              event.currentTarget.style.display = 'none';
+                              event.currentTarget.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop';
                             }}
                           />
                           {p.isNewArrival && (
@@ -512,7 +518,7 @@ export default function ProductCatalogPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                  <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 min-[1500px]:grid-cols-4 gap-4 md:gap-5">
                     {products.map((p: any) => <ProductCard key={p._id} product={p} />)}
                   </div>
                 )}
@@ -575,6 +581,82 @@ export default function ProductCatalogPage() {
           </div>
         </div>
       </div>
+      {/* Comparison Modal */}
+      {showCompareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-950/60 backdrop-blur-sm" onClick={closeCompareModal} />
+          <div className="relative z-10 max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#e8f5ee] text-[#1a8a4a]">
+                  <BarChart3 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black tracking-tight text-gray-950">Product Comparison</h2>
+                  <p className="text-xs font-semibold text-gray-500">Comparing up to 3 selected products</p>
+                </div>
+              </div>
+              <button
+                onClick={closeCompareModal}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {compareItems.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-base font-bold text-gray-500">No products in compare list.</p>
+                <button
+                  onClick={closeCompareModal}
+                  className="mt-4 rounded-xl bg-[#1a8a4a] px-5 py-2.5 text-xs font-black text-white hover:bg-[#157a3f]"
+                >
+                  Browse Products
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {compareItems.map((item) => (
+                  <div key={item._id} className="relative rounded-2xl border border-gray-100 bg-[#f8fbf9] p-5">
+                    <button
+                      onClick={() => removeCompareItem(item._id)}
+                      className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-400 shadow-sm hover:text-red-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                    <div className="aspect-square w-full overflow-hidden rounded-xl bg-white p-4">
+                      <img src={item.img} alt={item.model} className="h-full w-full object-contain" />
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <span className="rounded-md bg-white px-2 py-1 text-[10px] font-black uppercase text-[#1a8a4a]">
+                        {item.category}
+                      </span>
+                      <h4 className="text-base font-black text-gray-950">{item.model}</h4>
+                      <p className="text-lg font-black text-[#1a8a4a]">৳{item.price.toLocaleString()}</p>
+                      {item.specifications && Object.keys(item.specifications).length > 0 && (
+                        <div className="mt-3 space-y-1 border-t border-gray-200/60 pt-3 text-xs">
+                          {Object.entries(item.specifications).map(([k, v]) => (
+                            <div key={k} className="flex justify-between text-gray-600">
+                              <span className="font-medium capitalize">{k}:</span>
+                              <span className="font-bold text-gray-900">{String(v)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <button
+                        onClick={(e) => handleListAddToCart(item, e)}
+                        className="mt-3 w-full rounded-xl bg-[#1a8a4a] py-2.5 text-center text-xs font-black text-white hover:bg-[#157a3f]"
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

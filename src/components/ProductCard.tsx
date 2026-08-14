@@ -72,17 +72,14 @@ export function ProductCard({ product, discountPercent }: ProductProps) {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 overflow-hidden h-full flex min-w-0 flex-col">
 
         {/* Image Container */}
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-50 flex items-center justify-center p-4 sm:aspect-square">
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#eefaf3] via-white to-[#f3f7ff] text-[#1a8a4a]">
-            <Package className="h-12 w-12 opacity-70" />
-          </div>
+        <div className="relative aspect-[4/3] sm:aspect-square overflow-hidden bg-gray-50 flex items-center justify-center">
           <img
-            src={product.img || 'https://via.placeholder.com/400x400'}
+            src={product.img || product.images?.[0] || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop'}
             alt={product.model}
-            className="relative z-10 max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-500 ease-out mix-blend-multiply"
+            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
             loading="lazy"
             onError={(event) => {
-              event.currentTarget.style.display = 'none';
+              event.currentTarget.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop';
             }}
           />
 
