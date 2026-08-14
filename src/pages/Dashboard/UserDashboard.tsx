@@ -4,8 +4,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { useWishlistStore } from '../../store/useWishlistStore';
 import { 
   LayoutDashboard, Package, Heart, Star, MapPin, 
-  Lock, LogOut, Edit3, Settings, ChevronRight,
-  Menu, X, BadgeCheck, ShieldCheck, Sparkles
+  Lock, LogOut, Edit3, ChevronRight,
+  Menu, X, BadgeCheck, ShieldCheck
 } from 'lucide-react';
 
 // Tabs
@@ -67,8 +67,8 @@ export default function UserDashboard() {
         <div className="w-10" /> {/* Spacer */}
       </div>
 
-      <div className="bd-container py-6 lg:py-8">
-        <div className="flex flex-col gap-6 lg:flex-row lg:gap-6 xl:gap-8">
+      <div className="bd-container py-4 lg:py-5 xl:py-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:gap-5 xl:gap-6 2xl:gap-8">
           
           {/* Sidebar Overlay (Mobile) */}
           {isSidebarOpen && (
@@ -79,23 +79,23 @@ export default function UserDashboard() {
           <aside className={`
             fixed lg:static inset-y-0 left-0 w-72 bg-white lg:bg-transparent z-50 transform transition-transform duration-300 lg:translate-x-0
             ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            lg:w-[260px] xl:w-[280px] 2xl:w-[300px] shrink-0
+            lg:w-[220px] xl:w-[250px] 2xl:w-[280px] shrink-0
           `}>
-            <div className="h-full flex flex-col bg-white p-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:rounded-[1.75rem] lg:border lg:border-gray-100 lg:p-4 lg:shadow-sm xl:top-28 xl:max-h-[calc(100vh-8rem)] xl:p-5 2xl:p-6">
+            <div className="h-full flex flex-col bg-white p-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-5.5rem)] lg:rounded-[1.75rem] lg:border lg:border-gray-100 lg:p-3 lg:shadow-sm xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:p-4 2xl:top-28 2xl:max-h-[calc(100vh-8rem)] 2xl:p-5">
               {/* Mobile Close */}
               <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden absolute top-6 right-6 p-2 text-gray-400">
                 <X className="h-6 w-6" />
               </button>
 
               {/* Profile Card */}
-              <div className="relative mb-4 overflow-hidden rounded-3xl border border-[#1a8a4a]/10 bg-[radial-gradient(circle_at_top_left,_#e8f5ee,_transparent_40%),#ffffff] p-5 lg:mb-3 lg:rounded-[1.5rem] lg:p-3 2xl:p-5">
-                <div className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-[#e8f5ee] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a8a4a] lg:hidden 2xl:inline-flex">
+              <div className="relative mb-3 overflow-hidden rounded-3xl border border-[#1a8a4a]/10 bg-[radial-gradient(circle_at_top_left,_#e8f5ee,_transparent_40%),#ffffff] p-4 lg:mb-2 lg:rounded-2xl lg:p-3 2xl:p-4">
+                <div className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#e8f5ee] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a8a4a] lg:hidden 2xl:inline-flex">
                   <BadgeCheck className="h-3.5 w-3.5" />
                   Verified
                 </div>
-                <div className="flex flex-col items-center text-center lg:flex-row lg:items-center lg:gap-3 lg:text-left 2xl:flex-col 2xl:text-center">
+                <div className="flex flex-col items-center text-center lg:flex-row lg:items-center lg:gap-2.5 lg:text-left 2xl:flex-col 2xl:text-center">
                   <div className="relative group">
-                    <div className="h-20 w-20 rounded-3xl bg-[#1a8a4a] flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-green-100 overflow-hidden ring-4 ring-white lg:h-12 lg:w-12 lg:rounded-2xl lg:text-lg 2xl:h-20 2xl:w-20 2xl:rounded-3xl 2xl:text-3xl">
+                    <div className="h-20 w-20 rounded-3xl bg-[#1a8a4a] flex items-center justify-center text-white font-black text-3xl shadow-xl shadow-green-100 overflow-hidden ring-4 ring-white lg:h-10 lg:w-10 lg:rounded-xl lg:text-sm 2xl:h-16 2xl:w-16 2xl:rounded-2xl 2xl:text-2xl">
                       {(user as any).profileImage ? (
                         <img src={(user as any).profileImage} alt={user.displayName} className="w-full h-full object-cover" />
                       ) : (
@@ -122,7 +122,9 @@ export default function UserDashboard() {
                   <div className="mt-4 grid w-full grid-cols-2 gap-2 lg:hidden 2xl:grid">
                     <div className="rounded-2xl bg-white/80 px-3 py-3 text-left ring-1 ring-gray-100 lg:rounded-xl lg:px-2.5 lg:py-2">
                       <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 lg:text-[9px]">Member</p>
-                      <p className="mt-1 text-sm font-black text-gray-900 lg:text-xs 2xl:text-sm">{new Date(user.createdAt || '').getFullYear()}</p>
+                      <p className="mt-1 text-sm font-black text-gray-900 lg:text-xs 2xl:text-sm">
+                        {user.createdAt && !isNaN(new Date(user.createdAt).getTime()) ? new Date(user.createdAt).getFullYear() : 2026}
+                      </p>
                     </div>
                     <div className="rounded-2xl bg-white/80 px-3 py-3 text-left ring-1 ring-gray-100 lg:rounded-xl lg:px-2.5 lg:py-2">
                       <p className="text-[10px] font-black uppercase tracking-wider text-gray-400 lg:text-[9px]">Saved</p>
@@ -133,44 +135,49 @@ export default function UserDashboard() {
               </div>
 
               {/* Nav Menu */}
-              <nav className="space-y-1.5 flex-1 overflow-y-auto pr-1 lg:space-y-1">
+              <nav className="space-y-0.5 flex-1 overflow-y-auto pr-1 lg:space-y-0.5 xl:space-y-1">
                 {TABS.map((tab) => (
                   <button
                     key={tab.id}
                     onClick={() => handleTabChange(tab.id)}
                     className={`
-                      w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-200 lg:gap-3 lg:px-3 lg:py-2.5 lg:text-xs xl:px-3.5 xl:py-3 xl:text-sm 2xl:px-4 2xl:py-3.5
+                      w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-200
+                      lg:gap-2.5 lg:px-3 lg:py-2 lg:text-xs lg:rounded-xl
+                      xl:gap-3 xl:px-3.5 xl:py-2.5 xl:text-sm xl:rounded-2xl
+                      2xl:px-4 2xl:py-3 2xl:text-sm
                       ${activeTab === tab.id 
                         ? 'bg-[#1a8a4a] text-white shadow-lg shadow-green-100' 
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                       }
                     `}
                   >
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl lg:h-8 lg:w-8 ${activeTab === tab.id ? 'bg-white/15 text-white' : 'bg-gray-50 text-gray-400'}`}>
-                      <tab.icon className="h-5 w-5 lg:h-4 lg:w-4 2xl:h-5 2xl:w-5" />
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl lg:h-7 lg:w-7 lg:rounded-lg xl:h-8 xl:w-8 xl:rounded-xl ${activeTab === tab.id ? 'bg-white/15 text-white' : 'bg-gray-50 text-gray-400'}`}>
+                      <tab.icon className="h-4 w-4 lg:h-3.5 lg:w-3.5 xl:h-4 xl:w-4" />
                     </span>
                     <span className="min-w-0 flex-1 text-left">
                       <span className="block">{tab.label}</span>
-                      <span className={`block truncate text-[11px] font-semibold lg:text-[10px] ${activeTab === tab.id ? 'text-white/70' : 'text-gray-400'}`}>{tab.description}</span>
+                      {/* Hide description on compact lg viewports, show on xl+ */}
+                      <span className={`hidden xl:block truncate text-[11px] font-semibold ${activeTab === tab.id ? 'text-white/70' : 'text-gray-400'}`}>{tab.description}</span>
                     </span>
                     {tab.id === 'wishlist' && wishlistItems.length > 0 && (
                       <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${activeTab === tab.id ? 'bg-white text-[#1a8a4a]' : 'bg-red-50 text-red-600'}`}>
                         {wishlistItems.length}
                       </span>
                     )}
-                    {activeTab === tab.id && <ChevronRight className="h-4 w-4 opacity-50" />}
+                    {activeTab === tab.id && <ChevronRight className="h-3.5 w-3.5 opacity-50" />}
                   </button>
                 ))}
               </nav>
 
-              <div className="mt-4 rounded-3xl border border-gray-100 bg-gray-50/70 p-4 lg:mt-3 lg:rounded-2xl lg:p-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-[#1a8a4a] shadow-sm lg:h-8 lg:w-8 lg:rounded-xl">
-                    <ShieldCheck className="h-5 w-5 lg:h-4 lg:w-4" />
+              {/* Secure account badge - hidden at lg to save space */}
+              <div className="hidden xl:block mt-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white text-[#1a8a4a] shadow-sm">
+                    <ShieldCheck className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-gray-900 lg:text-xs 2xl:text-sm">Secure account</p>
-                    <p className="text-xs font-semibold text-gray-400 lg:text-[10px] 2xl:text-xs">Protected checkout and orders</p>
+                    <p className="text-xs font-black text-gray-900">Secure account</p>
+                    <p className="text-[10px] font-semibold text-gray-400">Protected checkout</p>
                   </div>
                 </div>
               </div>
@@ -178,9 +185,9 @@ export default function UserDashboard() {
               {/* Logout */}
               <button 
                 onClick={handleLogout}
-                className="mt-4 flex items-center gap-3.5 px-4 py-3.5 rounded-2xl font-bold text-sm text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 lg:mt-3 lg:px-3 lg:py-2.5 lg:text-xs xl:text-sm"
+                className="mt-2 flex w-full items-center gap-2.5 px-3 py-2 rounded-xl font-bold text-xs text-red-500 hover:bg-red-50 transition-all border border-transparent hover:border-red-100 xl:mt-3 xl:gap-3.5 xl:px-4 xl:py-3 xl:text-sm xl:rounded-2xl"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4 w-4" />
                 Sign Out
               </button>
             </div>

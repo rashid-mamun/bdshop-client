@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Check, Eye, EyeOff, Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { Check, Eye, EyeOff, Globe, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import apiClient from '../../../services/apiClient';
 import { useToast } from '../../../hooks/useToast';
 import { toUserFriendlyError } from '../../../utils/userFriendlyError';
+import { useAuthStore } from '../../../store/useAuthStore';
 
 function StrengthBar({ password }: { password: string }) {
   const checks = [/.{8,}/, /[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/];
@@ -56,9 +57,11 @@ function PasswordInput({ value, onChange, placeholder, label }: any) {
 }
 
 export default function ChangePasswordTab() {
+  const { user } = useAuthStore();
   const { success, error: toastError } = useToast();
   const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const isSocialAuth = (user as any)?.provider === 'google' || (user as any)?.provider === 'facebook';
 
   const mutation = useMutation({
     mutationFn: (data: any) => apiClient.put('/users/change-password', data),
@@ -70,6 +73,7 @@ export default function ChangePasswordTab() {
     onError: (err: any) => {
       const rawMsg = String(err.response?.data?.message || err.response?.data?.error || err.message || '');
       if (rawMsg.toLowerCase().includes('current')) setErrors({ currentPassword: 'Current password is incorrect' });
+      else if (rawMsg.toLowerCase().includes('social')) toastError('Cannot change password for social login accounts');
       else toastError(toUserFriendlyError(err, 'Failed to change password. Please try again.'));
     },
   });
@@ -78,12 +82,28 @@ export default function ChangePasswordTab() {
     event.preventDefault();
     const nextErrors: Record<string, string> = {};
     if (!form.currentPassword) nextErrors.currentPassword = 'Current password is required';
-    if (form.newPassword.length < 6) nextErrors.newPassword = 'Password must be at least 6 characters';
+    if (form.newPassword.length < 8) nextErrors.newPassword = 'Password must be at least 8 characters';
     if (form.newPassword !== form.confirmPassword) nextErrors.confirmPassword = 'Passwords do not match';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     mutation.mutate({ currentPassword: form.currentPassword, newPassword: form.newPassword });
   };
+
+  if (isSocialAuth) {
+    return (
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,620px)_minmax(300px,1fr)]">
+        <section className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e8f5ee] text-[#1a8a4a]">
+            <Globe className="h-6 w-6" />
+          </div>
+          <h2 className="mt-5 text-2xl font-black tracking-tight text-gray-950">Social login account</h2>
+          <p className="mt-2 text-sm font-medium leading-relaxed text-gray-500">
+            You signed in using a connected social account (Google/Facebook). Your authentication and password are secure and managed directly through your identity provider.
+          </p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,620px)_minmax(300px,1fr)]">

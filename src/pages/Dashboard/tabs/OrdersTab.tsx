@@ -7,7 +7,6 @@ import {
   ChevronRight,
   ChevronUp,
   CheckCircle,
-  Circle,
   Clock,
   CreditCard,
   MapPin,
@@ -29,7 +28,7 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string; progress: 
   cancelled: { label: 'Cancelled', classes: 'bg-red-50 text-red-700 border-red-100', progress: 100 },
 };
 
-const FILTERS = ['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+const FILTERS = ['all', 'pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
 const TIMELINE_STEPS = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
 
 const TIMELINE_META: Record<string, { label: string; desc: string; Icon: any }> = {
@@ -64,18 +63,18 @@ export default function OrdersTab() {
   const pagination = data?.pagination;
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+    <div className="space-y-4">
+      <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm xl:p-5">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-[#e8f5ee] px-3 py-1 text-xs font-black uppercase tracking-wider text-[#1a8a4a]">
-              <Truck className="h-4 w-4" />
+            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full bg-[#e8f5ee] px-3 py-1 text-xs font-black uppercase tracking-wider text-[#1a8a4a]">
+              <Truck className="h-3.5 w-3.5" />
               Order center
             </div>
-            <h2 className="text-2xl font-black tracking-tight text-gray-950">My orders</h2>
-            <p className="mt-1 text-sm font-medium text-gray-500">Track purchases, delivery status and payment details.</p>
+            <h2 className="text-xl font-black tracking-tight text-gray-950">My orders</h2>
+            <p className="mt-0.5 text-sm font-medium text-gray-500">Track purchases, delivery status and payment details.</p>
           </div>
-          <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl bg-gray-50 p-1">
+          <div className="flex max-w-full gap-1.5 overflow-x-auto rounded-2xl bg-gray-50 p-1">
             {FILTERS.map((filter) => (
               <button
                 key={filter}
@@ -83,7 +82,7 @@ export default function OrdersTab() {
                   setStatusFilter(filter);
                   setPage(1);
                 }}
-                className={`min-h-[38px] shrink-0 rounded-xl px-3.5 text-xs font-black capitalize transition ${
+                className={`min-h-[34px] shrink-0 rounded-xl px-3 text-xs font-black capitalize transition ${
                   statusFilter === filter ? 'bg-white text-[#1a8a4a] shadow-sm' : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
@@ -125,15 +124,24 @@ export default function OrdersTab() {
             const firstItem = order.items?.[0];
 
             return (
-              <article key={order._id} className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-                <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-center">
+              <article key={order._id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_200px] xl:items-center">
                   <div className="flex min-w-0 gap-4">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#f8fbf9] text-[#1a8a4a] ring-1 ring-gray-100">
-                      <Package className="h-7 w-7" />
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#f8fbf9] ring-1 ring-gray-100">
+                      {firstItem?.img ? (
+                        <img
+                          src={firstItem.img}
+                          alt={firstItem.name}
+                          className="h-full w-full object-cover"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <Package className="h-7 w-7 text-[#1a8a4a]" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-black text-gray-950">#ORD-{order._id?.slice(-6).toUpperCase()}</h3>
+                        <h3 className="font-black text-gray-950">{order.orderNumber || `#ORD-${order._id?.slice(-6).toUpperCase()}`}</h3>
                         <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${status.classes}`}>
                           {status.label}
                         </span>
@@ -156,7 +164,7 @@ export default function OrdersTab() {
                   </div>
 
                   <div className="flex items-center justify-between gap-3 xl:flex-col xl:items-end">
-                    <p className="text-xl font-black text-gray-950">Tk {order.total?.toLocaleString()}</p>
+                    <p className="text-xl font-black text-gray-950">৳{order.total?.toLocaleString()}</p>
                     <button
                       onClick={() => setExpandedId(isExpanded ? null : order._id)}
                       className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-gray-200 px-3 text-xs font-black text-gray-700 transition hover:border-[#1a8a4a]/30 hover:text-[#1a8a4a]"
@@ -169,6 +177,32 @@ export default function OrdersTab() {
 
                 {isExpanded && (
                   <div className="border-t border-gray-100 bg-gray-50/70 p-5">
+                    {/* Order Items Breakdown */}
+                    <div className="mb-4 rounded-2xl bg-white p-4 ring-1 ring-gray-100">
+                      <p className="mb-3 text-xs font-black uppercase tracking-wider text-gray-400">Order Items</p>
+                      <div className="space-y-2">
+                        {order.items?.map((item: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-50 ring-1 ring-gray-100">
+                              {item.img ? (
+                                <img src={item.img} alt={item.name} className="h-full w-full object-cover" onError={(e) => { e.currentTarget.style.display='none'; }} />
+                              ) : (
+                                <Package className="h-4 w-4 text-gray-300" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-bold text-gray-900">{item.name || item.model}</p>
+                              <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                            </div>
+                            <p className="text-sm font-black text-gray-900">৳{((item.price || 0) * item.quantity).toLocaleString()}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex justify-between border-t border-gray-100 pt-3">
+                        <span className="text-sm font-black text-gray-500">Total</span>
+                        <span className="text-sm font-black text-gray-950">৳{order.total?.toLocaleString()}</span>
+                      </div>
+                    </div>
                     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
                       <div className="rounded-2xl bg-white p-4 ring-1 ring-gray-100">
                         <p className="text-xs font-black uppercase tracking-wider text-gray-400 mb-4">Delivery Timeline</p>

@@ -7,19 +7,22 @@ import { useAuthStore } from '../../../store/useAuthStore';
 import { useToast } from '../../../hooks/useToast';
 
 const GENDERS = ['Male', 'Female', 'Prefer not to say'];
+const BD_DIVISIONS = ['Dhaka', 'Chattogram', 'Rajshahi', 'Khulna', 'Barishal', 'Sylhet', 'Rangpur', 'Mymensingh'];
 
 export default function EditProfileModal({ onClose }: { onClose: () => void }) {
   const { user, setUser } = useAuthStore();
   const { success, error: toastError } = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [form, setForm] = useState({
     displayName: user?.displayName || '',
     phone: user?.phone || '',
     dob: (user as any)?.dob || '',
     gender: (user as any)?.gender || '',
+    district: (user as any)?.district || '',
+    division: (user as any)?.division || '',
+    profileImage: (user as any)?.profileImage || '',
   });
-  const [avatar, setAvatar] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string>((user as any)?.profileImage || '');
 
   const mutation = useMutation({
     mutationFn: async (data: typeof form) => {
@@ -34,28 +37,35 @@ export default function EditProfileModal({ onClose }: { onClose: () => void }) {
     onError: (err: any) => toastError(err.response?.data?.message || 'Failed to update profile'),
   });
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toastError('Image must be under 2MB');
+    if (file.size > 5 * 1024 * 1024) {
+      toastError('Image must be smaller than 5MB');
       return;
     }
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      toastError('Only JPG/PNG allowed');
-      return;
+    const formData = new FormData();
+    formData.append('image', file);
+    setUploadingPhoto(true);
+    try {
+      const res = await apiClient.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const url = res.data.data?.url || res.data.data?.secure_url;
+      if (url) {
+        setForm((prev) => ({ ...prev, profileImage: url }));
+        success('Photo uploaded!');
+      }
+    } catch (err: any) {
+      toastError(err.response?.data?.message || err.response?.data?.error || 'Photo upload failed');
+    } finally {
+      setUploadingPhoto(false);
     }
-    setAvatar(file);
-    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = () => {
     if (!form.displayName.trim()) {
       toastError('Name is required');
-      return;
-    }
-    if (avatar) {
-      toastError('Profile photo upload is not available for user profiles yet.');
       return;
     }
     mutation.mutate(form);
@@ -93,23 +103,38 @@ export default function EditProfileModal({ onClose }: { onClose: () => void }) {
             <div className="mb-6 flex items-center gap-4">
               <div className="relative">
                 <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl bg-[#1a8a4a] text-2xl font-black text-white ring-4 ring-[#e8f5ee]">
-                  {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar" className="h-full w-full object-cover" />
+                  {form.profileImage ? (
+                    <img src={form.profileImage} alt="Avatar" className="h-full w-full object-cover" />
                   ) : (
                     user?.displayName?.charAt(0).toUpperCase()
                   )}
                 </div>
                 <button
-                  onClick={() => fileRef.current?.click()}
-                  className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-xl bg-[#1a8a4a] text-white shadow-md hover:bg-[#157a3f]"
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingPhoto}
+                  className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#1a8a4a] text-white shadow-md hover:bg-[#157a3f]"
+                  aria-label="Upload photo"
                 >
-                  <Camera className="h-4 w-4" />
+                  {uploadingPhoto ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
                 </button>
-                <input ref={fileRef} type="file" accept="image/jpeg,image/png" onChange={handleFileChange} className="hidden" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/webp"
+                  className="hidden"
+                  onChange={handlePhotoUpload}
+                />
               </div>
               <div>
                 <p className="font-black text-gray-950">Profile photo</p>
-                <p className="mt-1 text-sm font-medium text-gray-500">JPG or PNG, max 2MB.</p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="mt-1 text-xs font-bold text-[#1a8a4a] hover:underline"
+                >
+                  {uploadingPhoto ? 'Uploading...' : 'Click to change photo'}
+                </button>
               </div>
             </div>
 
@@ -125,6 +150,17 @@ export default function EditProfileModal({ onClose }: { onClose: () => void }) {
               </Field>
               <Field label="Date of birth">
                 <input type="date" value={form.dob} onChange={(event) => setForm((current) => ({ ...current, dob: event.target.value }))} className={inputCls} />
+              </Field>
+              <Field label="District">
+                <input value={form.district} onChange={(event) => setForm((current) => ({ ...current, district: event.target.value }))} className={inputCls} placeholder="e.g. Dhaka" />
+              </Field>
+              <Field label="Division">
+                <select value={form.division} onChange={(event) => setForm((current) => ({ ...current, division: event.target.value }))} className={inputCls}>
+                  <option value="">Select Division</option>
+                  {BD_DIVISIONS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
               </Field>
               <div className="sm:col-span-2">
                 <p className="mb-1.5 text-sm font-black text-gray-800">Gender</p>

@@ -208,7 +208,7 @@ export default function DashboardTab({ onTabChange }: { onTabChange: (tab: strin
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-black text-gray-950">#ORD-{order._id?.slice(-6).toUpperCase()}</p>
+                            <p className="font-black text-gray-950">{order.orderNumber || `#ORD-${order._id?.slice(-6).toUpperCase()}`}</p>
                             <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black uppercase ${STATUS_STYLES[status] || STATUS_STYLES.pending}`}>
                               {status}
                             </span>
@@ -227,7 +227,7 @@ export default function DashboardTab({ onTabChange }: { onTabChange: (tab: strin
                         </div>
                       </div>
                       <div className="flex items-center justify-between gap-3 xl:flex-col xl:items-end">
-                        <p className="text-lg font-black text-gray-950">Tk {order.total?.toLocaleString()}</p>
+                        <p className="text-lg font-black text-gray-950">৳{order.total?.toLocaleString()}</p>
                         <button
                           onClick={() => onTabChange('orders')}
                           className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition hover:border-[#1a8a4a]/30 hover:text-[#1a8a4a]"

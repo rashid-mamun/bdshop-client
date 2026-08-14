@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Heart, Package, ShieldCheck, ShoppingCart, Trash2 } from 'lucide-react';
+import { ArrowRight, Heart, ShieldCheck, ShoppingCart, Trash2 } from 'lucide-react';
 import { useWishlistStore, type WishlistItem } from '../../../store/useWishlistStore';
 import { useCartStore } from '../../../store/useCartStore';
 import { useToast } from '../../../hooks/useToast';
@@ -52,20 +52,15 @@ export default function WishlistTab() {
           {items.map((item) => (
             <article key={item._id} className="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
               <Link to={`/products/${item._id}`} className="block">
-                <div className="relative aspect-[4/3] bg-[#f8fbf9]">
-                  <div className="absolute inset-0 flex items-center justify-center text-[#1a8a4a]">
-                    <Package className="h-12 w-12 opacity-35" />
-                  </div>
-                  {item.img && (
-                    <img
-                      src={item.img}
-                      alt={item.model || item.name}
-                      className="relative h-full w-full object-contain p-5 transition duration-300 group-hover:scale-105"
-                      onError={(event) => {
-                        event.currentTarget.style.display = 'none';
-                      }}
-                    />
-                  )}
+                <div className="relative aspect-[4/3] bg-[#f8fbf9] overflow-hidden">
+                  <img
+                    src={item.img || 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop'}
+                    alt={item.model || item.name}
+                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    onError={(event) => {
+                      event.currentTarget.src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?q=80&w=600&auto=format&fit=crop';
+                    }}
+                  />
                   <span className="absolute left-3 top-3 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a8a4a] shadow-sm">
                     Saved
                   </span>

@@ -37,19 +37,19 @@ export default function AddressesTab() {
   const createMutation = useMutation({
     mutationFn: (data: any) => apiClient.post('/addresses', data),
     onSuccess: () => { success('Address added!'); closeModal(); queryClient.invalidateQueries({ queryKey: ['my-addresses'] }); },
-    onError: (err: any) => toastError(err.response?.data?.message || 'Failed to add address'),
+    onError: (err: any) => toastError(err.response?.data?.error || err.response?.data?.message || 'Failed to add address'),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: any) => apiClient.put(`/addresses/${id}`, data),
     onSuccess: () => { success('Address updated!'); closeModal(); queryClient.invalidateQueries({ queryKey: ['my-addresses'] }); },
-    onError: (err: any) => toastError(err.response?.data?.message || 'Failed to update address'),
+    onError: (err: any) => toastError(err.response?.data?.error || err.response?.data?.message || 'Failed to update address'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/addresses/${id}`),
     onSuccess: () => { success('Address deleted'); queryClient.invalidateQueries({ queryKey: ['my-addresses'] }); },
-    onError: (err: any) => toastError(err.response?.data?.message || 'Cannot delete address'),
+    onError: (err: any) => toastError(err.response?.data?.error || err.response?.data?.message || 'Cannot delete address'),
   });
 
   const defaultMutation = useMutation({

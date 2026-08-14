@@ -62,7 +62,7 @@ export default function ReviewsTab() {
       setEditingId(null);
       queryClient.invalidateQueries({ queryKey: ['my-reviews'] });
     },
-    onError: (err: any) => toastError(err.response?.data?.message || 'Failed to update review'),
+    onError: (err: any) => toastError(err.response?.data?.error || err.response?.data?.message || 'Failed to update review'),
   });
 
   const reviews = reviewsData || [];
@@ -110,70 +110,100 @@ export default function ReviewsTab() {
             const isSubmitting = updateMutation.isPending;
 
             return (
-              <article key={review._id} className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-amber-500">
-                    <MessageSquareText className="h-6 w-6" />
+              <article key={review._id} className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+                {/* Product info header */}
+                <Link
+                  to={`/products/${review.serviceId?._id || review.serviceId}`}
+                  className="flex items-center gap-3 border-b border-gray-100 bg-gray-50/60 px-4 py-3 transition hover:bg-[#f8fbf9]"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
+                    {review.serviceId?.img ? (
+                      <img
+                        src={review.serviceId.img}
+                        alt={review.serviceId?.model || 'Product'}
+                        className="h-full w-full object-cover"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <MessageSquareText className="h-5 w-5 text-amber-400" />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <RatingStars value={review.star} />
-                        <h3 className="mt-2 font-black text-gray-950">{review.title || 'Product review'}</h3>
-                        <p className="mt-1 text-xs font-semibold text-gray-400">
-                          {new Date(review.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </p>
+                    {review.serviceId?.category && (
+                      <p className="text-[10px] font-black uppercase tracking-wider text-[#1a8a4a]">{review.serviceId.category}</p>
+                    )}
+                    <p className="truncate text-sm font-black text-gray-900">
+                      {review.serviceId?.model || review.serviceId?.name || 'View product'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-400 ring-1 ring-gray-100">
+                    View →
+                  </span>
+                </Link>
+
+                {/* Review content */}
+                <div className="p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <RatingStars value={review.star} />
+                          <h3 className="mt-2 font-black text-gray-950">{review.title || 'Product review'}</h3>
+                          <p className="mt-1 text-xs font-semibold text-gray-400">
+                            {new Date(review.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
+                        {!isEditing && (
+                          <button
+                            onClick={() => {
+                              setEditingId(review._id);
+                              setForm({ star: review.star, title: review.title || '', description: review.description || '' });
+                            }}
+                            className="inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-gray-200 px-3 text-xs font-black text-gray-700 hover:border-[#1a8a4a]/30 hover:text-[#1a8a4a]"
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                            Edit
+                          </button>
+                        )}
                       </div>
-                      {!isEditing && (
-                        <button
-                          onClick={() => {
-                            setEditingId(review._id);
-                            setForm({ star: review.star, title: review.title || '', description: review.description || '' });
-                          }}
-                          className="inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-gray-200 px-3 text-xs font-black text-gray-700 hover:border-[#1a8a4a]/30 hover:text-[#1a8a4a]"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          Edit
-                        </button>
+
+                      {!isEditing ? (
+                        <p className="mt-4 text-sm font-medium leading-6 text-gray-600">{review.description || 'No review details provided.'}</p>
+                      ) : (
+                        <div className="mt-4 space-y-3">
+                          <StarSelector value={form.star} onChange={(value) => setForm((current) => ({ ...current, star: value }))} />
+                          <input
+                            value={form.title}
+                            onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+                            placeholder="Review title"
+                            className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm font-medium outline-none focus:border-[#1a8a4a] focus:ring-2 focus:ring-[#1a8a4a]/15"
+                          />
+                          <textarea
+                            value={form.description}
+                            onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
+                            placeholder="Share your experience"
+                            rows={4}
+                            className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium outline-none focus:border-[#1a8a4a] focus:ring-2 focus:ring-[#1a8a4a]/15"
+                          />
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => updateMutation.mutate({ id: review._id, payload: form })}
+                              disabled={isSubmitting || form.description.length < 20}
+                              className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#1a8a4a] px-4 text-sm font-black text-white hover:bg-[#157a3f] disabled:opacity-60"
+                            >
+                              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                              Update review
+                            </button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="min-h-[42px] rounded-xl border border-gray-200 px-4 text-sm font-black text-gray-600 hover:bg-gray-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
-
-                    {!isEditing ? (
-                      <p className="mt-4 text-sm font-medium leading-6 text-gray-600">{review.description || 'No review details provided.'}</p>
-                    ) : (
-                      <div className="mt-4 space-y-3">
-                        <StarSelector value={form.star} onChange={(value) => setForm((current) => ({ ...current, star: value }))} />
-                        <input
-                          value={form.title}
-                          onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                          placeholder="Review title"
-                          className="h-11 w-full rounded-xl border border-gray-200 px-4 text-sm font-medium outline-none focus:border-[#1a8a4a] focus:ring-2 focus:ring-[#1a8a4a]/15"
-                        />
-                        <textarea
-                          value={form.description}
-                          onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
-                          placeholder="Share your experience"
-                          rows={4}
-                          className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 text-sm font-medium outline-none focus:border-[#1a8a4a] focus:ring-2 focus:ring-[#1a8a4a]/15"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => updateMutation.mutate({ id: review._id, payload: form })}
-                            disabled={isSubmitting || form.description.length < 20}
-                            className="inline-flex min-h-[42px] items-center gap-2 rounded-xl bg-[#1a8a4a] px-4 text-sm font-black text-white hover:bg-[#157a3f] disabled:opacity-60"
-                          >
-                            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                            Update review
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="min-h-[42px] rounded-xl border border-gray-200 px-4 text-sm font-black text-gray-600 hover:bg-gray-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </article>
