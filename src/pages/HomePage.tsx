@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import { ProductCard } from '../components/ProductCard';
 import { CountdownTimer } from '../components/ui/CountdownTimer';
@@ -57,128 +57,6 @@ const CAMPAIGN_TILES = [
 ];
 
 const BRAND_NAMES = ['NovaTech', 'SoundCore', 'AeroFit', 'PixelMate', 'UrbanRide', 'DrivePro', 'ChargeMax', 'HomeHub'];
-
-const FALLBACK_PRODUCTS: Product[] = [
-  {
-    _id: 'demo-1',
-    name: 'NovaTech',
-    model: 'NovaBook Air 14 Pro',
-    price: 89500,
-    originalPrice: 104000,
-    discountPercent: 14,
-    img: 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=640&q=80',
-    description: 'Slim work laptop with vivid display and all-day battery life.',
-    category: 'Electronics',
-    averageRating: 4.8,
-    reviewCount: 128,
-    isFlashDeal: true,
-    stock: 4,
-  },
-  {
-    _id: 'demo-2',
-    name: 'SoundCore',
-    model: 'Pulse ANC Wireless Headphones',
-    price: 12500,
-    originalPrice: 16500,
-    discountPercent: 24,
-    img: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=640&q=80',
-    description: 'Noise-cancelling headphones tuned for travel and focus.',
-    category: 'Accessories',
-    averageRating: 4.7,
-    reviewCount: 89,
-    isNewArrival: true,
-    stock: 9,
-  },
-  {
-    _id: 'demo-3',
-    name: 'UrbanRide',
-    model: 'Volt X Electric Scooter',
-    price: 72500,
-    originalPrice: 79000,
-    discountPercent: 8,
-    img: 'https://images.unsplash.com/photo-1609630875171-b1321377ee65?w=640&q=80',
-    description: 'Daily commute scooter with long range and quick charging.',
-    category: 'Vehicles',
-    averageRating: 4.6,
-    reviewCount: 54,
-    stock: 3,
-  },
-  {
-    _id: 'demo-4',
-    name: 'AeroFit',
-    model: 'AeroFit Smart Watch S2',
-    price: 8900,
-    originalPrice: 12000,
-    discountPercent: 26,
-    img: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=640&q=80',
-    description: 'Health tracking, calls, and a bright AMOLED display.',
-    category: 'Electronics',
-    averageRating: 4.9,
-    reviewCount: 203,
-    isFlashDeal: true,
-    isNewArrival: true,
-    stock: 12,
-  },
-  {
-    _id: 'demo-5',
-    name: 'PixelMate',
-    model: 'PixelMate 4K Action Camera',
-    price: 21900,
-    originalPrice: 26000,
-    discountPercent: 16,
-    img: 'https://images.unsplash.com/photo-1512790182412-b19e6d62bc39?w=640&q=80',
-    description: 'Compact 4K action camera for travel and outdoor content.',
-    category: 'Electronics',
-    averageRating: 4.5,
-    reviewCount: 77,
-    isFlashDeal: true,
-    stock: 6,
-  },
-  {
-    _id: 'demo-6',
-    name: 'HomeHub',
-    model: 'HomeHub Mini Speaker',
-    price: 6400,
-    originalPrice: 8200,
-    discountPercent: 22,
-    img: 'https://images.unsplash.com/photo-1589003077984-894e133dabab?w=640&q=80',
-    description: 'Room-filling smart speaker with deep bass and voice control.',
-    category: 'Accessories',
-    averageRating: 4.6,
-    reviewCount: 64,
-    isNewArrival: true,
-    stock: 15,
-  },
-  {
-    _id: 'demo-7',
-    name: 'DrivePro',
-    model: 'DrivePro Dash Camera',
-    price: 15900,
-    originalPrice: 18900,
-    discountPercent: 16,
-    img: 'https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=640&q=80',
-    description: 'Wide angle recording, night vision, and emergency save.',
-    category: 'Vehicles',
-    averageRating: 4.4,
-    reviewCount: 41,
-    isFlashDeal: true,
-    stock: 8,
-  },
-  {
-    _id: 'demo-8',
-    name: 'ChargeMax',
-    model: 'ChargeMax 65W GaN Charger',
-    price: 3600,
-    originalPrice: 4500,
-    discountPercent: 20,
-    img: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=640&q=80',
-    description: 'Compact fast charger for phone, tablet, and laptop.',
-    category: 'Accessories',
-    averageRating: 4.8,
-    reviewCount: 147,
-    stock: 18,
-  },
-];
 
 /* ─── Skeleton ───────────────────────────────── */
 function ProductSkeleton() {
@@ -249,6 +127,7 @@ function HorizontalScroller({ children }: { children: React.ReactNode }) {
 
 /* ─── Page ───────────────────────────────────── */
 export default function HomePage() {
+  const navigate = useNavigate();
   const { items: recentlyViewed } = useRecentlyViewedStore();
 
   const { data: featuredProducts, isLoading: loadingFeatured } = useQuery({
@@ -279,7 +158,7 @@ export default function HomePage() {
     queryKey: ['featured-reviews'],
     queryFn: async () => {
       const res = await apiClient.get('/reviews', { params: { limit: '6' } });
-      return res.data.data as any[];
+      return (res.data.data?.reviews || []) as any[];
     },
   });
 
@@ -297,44 +176,44 @@ export default function HomePage() {
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
 
-        <div className="bd-container py-16 md:py-24 relative">
-          <div className="grid md:grid-cols-2 gap-10 items-center">
+        <div className="bd-container py-10 md:py-14 lg:py-16 relative">
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-10 items-center">
             {/* Left — Copy */}
-            <div className="text-white space-y-6">
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-4 py-1.5 text-sm text-white/90">
+            <div className="text-white space-y-5 lg:space-y-6">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full px-3.5 py-1 text-xs sm:text-sm text-white/90">
                 <span className="h-2 w-2 bg-green-400 rounded-full animate-pulse" />
                 New arrivals every week
               </div>
 
-              <h1 className="max-w-[18rem] break-words text-4xl font-black leading-[1.1] tracking-tight sm:max-w-none md:text-5xl lg:text-6xl">
+              <h1 className="max-w-[18rem] break-words text-3xl font-black leading-[1.1] tracking-tight sm:max-w-none sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl">
                 Premium Shopping
                 <span className="block text-[#4ade80] mt-1">Made Simple</span>
               </h1>
 
-              <p className="max-w-[19rem] break-words text-lg leading-relaxed text-white/70 sm:max-w-md">
+              <p className="max-w-[19rem] break-words text-base sm:text-lg leading-relaxed text-white/75 sm:max-w-md">
                 Discover curated electronics, vehicles & accessories with guaranteed authenticity and fast delivery across Bangladesh.
               </p>
 
-              <div className="flex flex-wrap gap-3 pt-2">
+              <div className="flex flex-wrap gap-3 pt-1">
                 <Link
                   to="/products"
-                  className="inline-flex items-center gap-2 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold px-8 py-3.5 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-green-900/40 active:scale-95"
+                  className="inline-flex items-center gap-2 bg-[#1a8a4a] hover:bg-[#157a3f] text-white font-bold px-7 py-3 rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-green-900/40 active:scale-95 text-sm sm:text-base"
                 >
                   Shop Now <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   to="/products?sort=price_asc"
-                  className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold px-7 py-3.5 rounded-xl transition-all duration-200 backdrop-blur"
+                  className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/30 text-white font-semibold px-6 py-3 rounded-xl transition-all duration-200 backdrop-blur text-sm sm:text-base"
                 >
                   View Deals
                 </Link>
               </div>
 
-              <div className="flex gap-6 pt-2 text-sm">
+              <div className="flex gap-6 pt-1 text-sm">
                 {[['10K+', 'Happy Customers'], ['500+', 'Products'], ['4.8★', 'Avg Rating']].map(([val, lbl]) => (
                   <div key={lbl}>
-                    <div className="font-bold text-white text-lg">{val}</div>
-                    <div className="text-white/50 text-xs">{lbl}</div>
+                    <div className="font-bold text-white text-base sm:text-lg">{val}</div>
+                    <div className="text-white/60 text-xs">{lbl}</div>
                   </div>
                 ))}
               </div>
@@ -343,7 +222,7 @@ export default function HomePage() {
             {/* Right — Visual (Dynamic) */}
             <div className="hidden md:flex justify-center">
               {showHeroVisual && (
-                <div className="relative group cursor-pointer" onClick={() => window.location.href = heroProduct ? `/products/${heroProduct._id}` : '/products'}>
+                <div className="relative group cursor-pointer" onClick={() => navigate(heroProduct ? `/products/${heroProduct._id}` : '/products')}>
                   <div className="absolute inset-0 bg-[#1a8a4a] opacity-20 blur-[80px] rounded-full scale-75 group-hover:opacity-30 transition-opacity" />
                   <div className="relative w-[380px] rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur transition-transform duration-300 hover:-translate-y-2">
                     <div className="grid grid-cols-2 gap-3">
