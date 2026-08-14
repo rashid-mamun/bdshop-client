@@ -47,13 +47,68 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-// Response interceptor: on 401, clear auth state
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: unknown) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
+const processQueue = (error: any = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve();
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor: on 401, attempt token refresh before logging out
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    const originalRequest = error.config;
+    const url = originalRequest?.url || '';
+
+    // If 401 is on auth endpoints or already retried, perform logout
+    if (
+      error.response?.status === 401 &&
+      !originalRequest?._retry &&
+      !url.includes('/users/login') &&
+      !url.includes('/users/register') &&
+      !url.includes('/users/refresh') &&
+      !url.includes('/auth/google') &&
+      !url.includes('/auth/facebook')
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => apiClient(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await apiClient.post('/users/refresh');
+        processQueue(null);
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError);
+        useAuthStore.getState().logout();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    if (error.response?.status === 401 && (url.includes('/users/refresh') || originalRequest?._retry)) {
       useAuthStore.getState().logout();
     }
+
     return Promise.reject(error);
   }
 );

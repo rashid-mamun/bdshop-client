@@ -33,11 +33,19 @@ export const useAuthStore = create<AuthStore>()(
       },
       logout: () => {
         set({ user: null, isAuthenticated: false });
-        // Fire-and-forget server logout to clear cookies
-        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'}/users/logout`, {
-          method: 'POST',
-          credentials: 'include',
-        }).catch(() => {});
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+        // Clear the httpOnly auth cookies using the same CSRF flow as other mutations.
+        fetch(`${apiBaseUrl}/csrf-token`, { credentials: 'include' })
+          .then(async (response) => {
+            const body = await response.json();
+            if (!response.ok || !body?.csrfToken) return;
+            await fetch(`${apiBaseUrl}/users/logout`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'x-csrf-token': body.csrfToken },
+            });
+          })
+          .catch(() => {});
       },
     }),
     {
