@@ -487,9 +487,9 @@ export default function CheckoutPage() {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-12 gap-8">
+        <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
           {/* Left Column: Form / Payment */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="min-w-0 space-y-6 lg:col-span-7">
             {/* Step 1: Shipping */}
             {step === 1 && (
               <div className="overflow-hidden bg-white rounded-3xl border border-gray-100 shadow-sm">
@@ -705,7 +705,7 @@ export default function CheckoutPage() {
           </div>
 
           {/* Right: Order Summary */}
-          <div className="w-full shrink-0">
+          <div className="w-full min-w-0 lg:col-span-5">
             <div className="overflow-hidden bg-white rounded-3xl border border-gray-100 shadow-sm sticky top-24">
               <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white p-6">
                 <div className="flex items-center justify-between gap-3">
