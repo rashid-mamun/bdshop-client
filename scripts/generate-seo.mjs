@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 
-const siteUrl = process.env.VITE_SITE_URL || 'https://bdshop.com';
+const siteUrl = (process.env.VITE_SITE_URL || 'https://bdshop-online.vercel.app').replace(/\/$/, '');
 const routes = [
   '/',
   '/products',
@@ -36,4 +36,3 @@ Sitemap: ${siteUrl}/sitemap.xml
 
 await writeFile('dist/sitemap.xml', sitemap);
 await writeFile('dist/robots.txt', robots);
-
